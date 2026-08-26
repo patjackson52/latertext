@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@500;600;700&amp;family=Roboto:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..600,0..1,0&amp;display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#EDEBE7;font-family:Roboto,system-ui,sans-serif;color:#1B1C1A}
+a{color:#256A53}a:hover{color:#06301F}
+.msi{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;display:inline-block;letter-spacing:normal;text-transform:none;white-space:nowrap;direction:ltr;-webkit-font-smoothing:antialiased;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+.msf{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24}
+.sec{padding:48px 56px;border-bottom:1px solid rgba(0,0,0,.08)}
+.shead{display:flex;align-items:baseline;gap:12px;margin:0 0 6px}
+.snum{font:600 11px ui-monospace,Menlo,monospace;padding:3px 8px;background:#1B1C1A;color:#fff;border-radius:4px}
+.stitle{font:600 20px/1.2 'Albert Sans',sans-serif}
+.ssub{font:400 13px/1.5 Roboto,sans-serif;color:#5B5E57;max-width:760px;margin:0 0 28px}
+.frames{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+.fcap{font:500 12px/1.4 Roboto,sans-serif;color:#1B1C1A;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.fnote{font:400 11px/1.5 Roboto,sans-serif;color:#6B6E66;max-width:412px;margin:8px 0 0}
+.systag{font:600 9px/1 ui-monospace,monospace;letter-spacing:.08em;padding:3px 6px;border-radius:4px;background:#E3E0DA;color:#5B5E57}
+.apptag{font:600 9px/1 ui-monospace,monospace;letter-spacing:.08em;padding:3px 6px;border-radius:4px;background:#C2EAD7;color:#06301F}
+</style>
+</helmet>
+
+<section class="sec" style="padding:56px 56px 40px;background:#FAF9F7">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+    <div style="width:44px;height:44px;border-radius:14px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="color:#fff;font-size:24px">schedule_send</span></div>
+    <div>
+      <div style="font:700 26px/1.1 'Albert Sans',sans-serif">LaterText</div>
+      <div style="font:400 13px/1.3 Roboto,sans-serif;color:#5B5E57">Android UX specification · Material 3 · 412×915dp</div>
+    </div>
+  </div>
+  <div style="font:500 17px/1.4 'Albert Sans',sans-serif;color:#256A53;margin:0 0 24px">“Write it now. Send it when the time is right.”</div>
+  <div style="font:600 12px/1 Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin:0 0 10px">DESIGN ASSUMPTIONS</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px 28px;max-width:1100px;font:400 12.5px/1.55 Roboto,sans-serif;color:#3A3D37">
+    <div>· SMS/MMS send permission is grantable (private / enterprise distribution); LaterText is never the default SMS app and has no inbox.</div>
+    <div>· One-to-one messages only; a “schedule” = one recipient + content + timing rule. Recurring sends reuse the same content.</div>
+    <div>· Jitter offsets are sampled once per occurrence at scheduling time and persisted; previews show the sampled result.</div>
+    <div>· RCS is assisted-only: a notification opens the default messaging app with content prefilled; the user taps Send there.</div>
+    <div>· “Sent to carrier” ≠ “Delivered”; delivery receipts are best-effort and may stay “Unknown”. Copy never promises delivery.</div>
+    <div>· Contact access uses the Android system Contact Picker (no in-app contact database); numbers can also be typed manually.</div>
+    <div>· GIFs come from GIPHY and are downloaded locally on save; sends never depend on the GIPHY API being reachable.</div>
+    <div>· Without exact-alarm access the app still works, labeled “Approximate timing” (±10 min OS batching).</div>
+    <div>· Carrier-safe MMS budget assumed 1 MB; larger media is auto-compressed with user notice.</div>
+    <div>· Dual-SIM is supported; SIM choice is per-schedule with an app-level default.</div>
+  </div>
+</section>
+
+<section class="sec" id="t1">
+  <div class="shead"><span class="snum">01</span><span class="stitle">Visual direction — two concepts</span></div>
+  <p class="ssub">Both are restrained Material 3 identities; they differ in temperature and how “brand” shows up. <b>Recommendation: 1a Evergreen</b> — the green reads calm and dependable, keeps amber/red status colors unambiguous, and the humanist display face (Albert Sans) gives times and dates a personal, non-corporate voice. 1b stays closer to stock Android and suits Material You dynamic color, but violet competes with status semantics.</p>
+  <div class="frames">
+    <div id="1a" style="flex:none">
+      <div class="fcap"><a href="#1a" style="text-decoration:none"><span style="font:600 10.5px ui-monospace,monospace;padding:3px 7px;background:rgba(0,0,0,.08);border-radius:5px;color:#1B1C1A">1a</span></a> Evergreen — recommended</div>
+      <div style="width:420px;background:#FAF9F7;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;height:52px;border-radius:10px;background:#256A53;color:#fff;display:flex;align-items:flex-end;padding:6px 8px;font:500 10px Roboto,sans-serif">primary 256A53</div>
+          <div style="flex:1;height:52px;border-radius:10px;background:#C2EAD7;color:#06301F;display:flex;align-items:flex-end;padding:6px 8px;font:500 10px Roboto,sans-serif">container C2EAD7</div>
+          <div style="flex:1;height:52px;border-radius:10px;background:#FAF9F7;border:1px solid #DAD7D1;color:#45483F;display:flex;align-items:flex-end;padding:6px 8px;font:500 10px Roboto,sans-serif">surface FAF9F7</div>
+          <div style="flex:1;height:52px;border-radius:10px;background:#1B1C1A;color:#E3E4DE;display:flex;align-items:flex-end;padding:6px 8px;font:500 10px Roboto,sans-serif">on-surface</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;height:34px;border-radius:8px;background:#FFDF9E;color:#261A00;display:flex;align-items:center;padding:0 8px;font:500 10px Roboto,sans-serif">warn FFDF9E</div>
+          <div style="flex:1;height:34px;border-radius:8px;background:#F9DEDC;color:#410E0B;display:flex;align-items:center;padding:0 8px;font:500 10px Roboto,sans-serif">error F9DEDC</div>
+          <div style="flex:1;height:34px;border-radius:8px;background:#ECEAE5;color:#45483F;display:flex;align-items:center;padding:0 8px;font:500 10px Roboto,sans-serif">neutral ECEAE5</div>
+        </div>
+        <div>
+          <div style="font:600 22px/1.2 'Albert Sans',sans-serif">Every Friday around 5:00 PM</div>
+          <div style="font:400 13px/1.5 Roboto,sans-serif;color:#45483F">Albert Sans for titles &amp; times · Roboto for UI text. Shape: 16dp cards, 28dp sheets, pill chips.</div>
+        </div>
+        <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:50%;background:#C2EAD7;color:#06301F;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">M</div>
+          <div style="flex:1;min-width:0">
+            <div style="font:500 14px Roboto,sans-serif">Mom · Mobile</div>
+            <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Thinking of you! Call you this weekend…</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font:600 15px 'Albert Sans',sans-serif">5:00 PM</div>
+            <div style="font:400 11px Roboto,sans-serif;color:#5B5E57">±15 min</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="1b" style="flex:none">
+      <div class="fcap"><a href="#1b" style="text-decoration:none"><span style="font:600 10.5px ui-monospace,monospace;padding:3px 7px;background:rgba(0,0,0,.08);border-radius:5px;color:#1B1C1A">1b</span></a> Violet — closer to stock, Material You ready</div>
+      <div style="width:420px;background:#FCF8FD;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;height:52px;border-radius:10px;background:#7B4EA0;color:#fff;display:flex;align-items:flex-end;padding:6px 8px;font:500 10px Roboto,sans-serif">primary 7B4EA0</div>
+          <div style="flex:1;height:52px;border-radius:10px;background:#F0DBFF;color:#2D0C4F;display:flex;align-items:flex-end;padding:6px 8px;font:500 10px Roboto,sans-serif">container F0DBFF</div>
+          <div style="flex:1;height:52px;border-radius:10px;background:#FCF8FD;border:1px solid #DDD6E0;color:#4A454E;display:flex;align-items:flex-end;padding:6px 8px;font:500 10px Roboto,sans-serif">surface FCF8FD</div>
+          <div style="flex:1;height:52px;border-radius:10px;background:#1D1A20;color:#E7E1E8;display:flex;align-items:flex-end;padding:6px 8px;font:500 10px Roboto,sans-serif">on-surface</div>
+        </div>
+        <div>
+          <div style="font:400 22px/1.2 Roboto,sans-serif">Every Friday around 5:00 PM</div>
+          <div style="font:400 13px/1.5 Roboto,sans-serif;color:#4A454E">Roboto throughout (dynamic-color friendly). Shape: 12dp cards, tonal surfaces instead of borders.</div>
+        </div>
+        <div style="background:#F0EAF3;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:50%;background:#7B4EA0;color:#fff;display:flex;align-items:center;justify-content:center;font:500 16px Roboto,sans-serif">M</div>
+          <div style="flex:1;min-width:0">
+            <div style="font:500 14px Roboto,sans-serif">Mom · Mobile</div>
+            <div style="font:400 12.5px Roboto,sans-serif;color:#4A454E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Thinking of you! Call you this weekend…</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font:500 15px Roboto,sans-serif">5:00 PM</div>
+            <div style="font:400 11px Roboto,sans-serif;color:#4A454E">±15 min</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="fnote" style="max-width:860px">All screens below use <a href="#1a">1a</a>. Status is never color-only: every state pairs an icon + label with its color. Dynamic color (Material You) remains an optional Settings toggle in either concept.</p>
+</section>
+
+<section class="sec" id="ia">
+  <div class="shead"><span class="snum">02</span><span class="stitle">Information architecture</span></div>
+  <p class="ssub">Three tabs + one primary action. System-owned surfaces (gray) are entered and returned from — never recreated in-app.</p>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;font:400 12px/1.45 Roboto,sans-serif">
+    <div style="display:flex;flex-direction:column;gap:8px;width:230px">
+      <div style="background:#256A53;color:#fff;border-radius:10px;padding:10px 12px;font-weight:600;font-family:'Albert Sans',sans-serif;font-size:13px">Onboarding (first run)</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Welcome · value proposition</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Progressive permissions: SMS → exact alarms → notifications</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Readiness summary (enabled / optional / action needed)</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;width:230px">
+      <div style="background:#256A53;color:#fff;border-radius:10px;padding:10px 12px;font-weight:600;font-family:'Albert Sans',sans-serif;font-size:13px">Upcoming (tab 1)</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Timeline: Today / Tomorrow / Later</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Scheduled-message detail → edit, pause, send now, duplicate, delete</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Pause all schedules</div>
+      <div style="background:#C2EAD7;border-radius:10px;padding:8px 12px;color:#06301F;font-weight:500">＋ New message (extended FAB)</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Composer → contact select · attach photo/GIF · SIM · transport summary</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Schedule editor (sheet): once / recurring · jitter · end · missed-send</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;width:230px">
+      <div style="background:#256A53;color:#fff;border-radius:10px;padding:10px 12px;font-weight:600;font-family:'Albert Sans',sans-serif;font-size:13px">History (tab 2)</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Filter by status · recipient · date</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Send-result detail: event timeline · retries · technical details</div>
+      <div style="background:#256A53;color:#fff;border-radius:10px;padding:10px 12px;font-weight:600;font-family:'Albert Sans',sans-serif;font-size:13px;margin-top:10px">Settings (tab 3)</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:10px;padding:8px 12px">Notifications · Scheduling · Messaging · GIFs &amp; data · Privacy &amp; storage · About &amp; diagnostics</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;width:250px">
+      <div style="background:#5B5E57;color:#fff;border-radius:10px;padding:10px 12px;font-weight:600;font-family:'Albert Sans',sans-serif;font-size:13px">System-owned surfaces</div>
+      <div style="background:#ECEAE5;border-radius:10px;padding:8px 12px">Android Sharesheet → import → composer (incl. Direct Share targets)</div>
+      <div style="background:#ECEAE5;border-radius:10px;padding:8px 12px">Text-selection toolbar → “Schedule message” (ACTION_PROCESS_TEXT)</div>
+      <div style="background:#ECEAE5;border-radius:10px;padding:8px 12px">System Contact Picker (privacy-preserving)</div>
+      <div style="background:#ECEAE5;border-radius:10px;padding:8px 12px">Default messaging app: assisted RCS send · “Open conversation”</div>
+      <div style="background:#ECEAE5;border-radius:10px;padding:8px 12px">Notifications: sent / delivered / failed / retry / assisted-ready / paused</div>
+    </div>
+  </div>
+</section>
+
+
+<section class="sec" id="onboarding">
+  <div class="shead"><span class="snum">03</span><span class="stitle">Onboarding &amp; permission setup</span></div>
+  <p class="ssub">Value first, then one permission per screen with a plain-language why. Contacts are never requested here — the system picker asks on first use. The readiness summary tolerates “no”: everything optional degrades gracefully.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Welcome</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;padding:0 24px 32px;box-sizing:border-box">
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:0">
+            <div style="width:96px;height:96px;border-radius:28px;background:#C2EAD7;display:flex;align-items:center;justify-content:center;margin-bottom:28px"><span class="msi msf" style="font-size:48px;color:#06301F">schedule_send</span></div>
+            <div style="font:600 30px/1.15 'Albert Sans',sans-serif;color:#1B1C1A;max-width:300px">Write it now. Send it when the time is right.</div>
+            <div style="font:400 15px/1.55 Roboto,sans-serif;color:#5B5E57;max-width:300px;margin-top:14px">Schedule texts to the people you care about — once, or on a rhythm. LaterText sends them for you and shows you exactly what happened.</div>
+          </div>
+          <div style="display:flex;justify-content:center;gap:8px;margin:0 0 24px">
+            <div style="width:8px;height:8px;border-radius:4px;background:#256A53"></div>
+            <div style="width:8px;height:8px;border-radius:4px;background:#DAD7D1"></div>
+            <div style="width:8px;height:8px;border-radius:4px;background:#DAD7D1"></div>
+            <div style="width:8px;height:8px;border-radius:4px;background:#DAD7D1"></div>
+          </div>
+          <div style="height:56px;border-radius:28px;background:#256A53;color:#fff;display:flex;align-items:center;justify-content:center;font:500 16px Roboto,sans-serif">Get started</div>
+        </div>
+      </x-import>
+    </div>
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Permission step (2 of 4) — SMS sending</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;padding:8px 24px 32px;box-sizing:border-box">
+          <div style="font:500 13px Roboto,sans-serif;color:#5B5E57;padding:8px 0 0">Step 2 of 4</div>
+          <div style="height:4px;border-radius:2px;background:#ECEAE5;margin:10px 0 0;overflow:hidden"><div style="width:50%;height:100%;background:#256A53;border-radius:2px"></div></div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:0">
+            <div style="width:72px;height:72px;border-radius:22px;background:#C2EAD7;display:flex;align-items:center;justify-content:center;margin-bottom:24px"><span class="msi" style="font-size:36px;color:#06301F">sms</span></div>
+            <div style="font:600 26px/1.2 'Albert Sans',sans-serif">Let LaterText send your texts</div>
+            <div style="font:400 15px/1.55 Roboto,sans-serif;color:#5B5E57;margin-top:12px">This is the heart of the app: when a scheduled time arrives, LaterText sends the message as a normal SMS or MMS from your number — even if the app is closed.</div>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-top:24px;font:400 13.5px/1.4 Roboto,sans-serif;color:#3A3D37">
+              <div style="display:flex;gap:12px;align-items:flex-start"><span class="msi" style="font-size:20px;color:#256A53">lock</span><span>Only messages you schedule are sent. Nothing else.</span></div>
+              <div style="display:flex;gap:12px;align-items:flex-start"><span class="msi" style="font-size:20px;color:#256A53">visibility_off</span><span>LaterText never reads your existing conversations.</span></div>
+              <div style="display:flex;gap:12px;align-items:flex-start"><span class="msi" style="font-size:20px;color:#256A53">receipt_long</span><span>Every send is logged in History with its result.</span></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="height:56px;border-radius:28px;background:#256A53;color:#fff;display:flex;align-items:center;justify-content:center;font:500 16px Roboto,sans-serif">Allow SMS sending</div>
+            <div style="height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;font:500 15px Roboto,sans-serif;color:#256A53">Not now</div>
+          </div>
+        </div>
+      </x-import>
+      <p class="fnote">Tapping “Allow” raises the system permission dialog. “Not now” continues; sending stays disabled and surfaces as Action needed in the readiness summary. Steps 3–4 repeat this pattern for exact alarms (“so 5:00 PM means 5:00 PM”) and notifications (“so you know what was sent”).</p>
+    </div>
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Readiness summary — with a degraded state</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;padding:8px 24px 32px;box-sizing:border-box">
+          <div style="font:500 13px Roboto,sans-serif;color:#5B5E57;padding:8px 0 0">Step 4 of 4</div>
+          <div style="font:600 26px/1.2 'Albert Sans',sans-serif;margin-top:18px">Here’s where you stand</div>
+          <div style="font:400 14px/1.5 Roboto,sans-serif;color:#5B5E57;margin:8px 0 20px">You can change any of this later in Settings.</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.06em;color:#256A53">ENABLED</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center"><span class="msi msf" style="font-size:22px;color:#256A53">check_circle</span><div style="flex:1"><div style="font:500 14.5px Roboto,sans-serif">Automatic SMS &amp; MMS sending</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Texts and photos send on schedule</div></div></div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center"><span class="msi msf" style="font-size:22px;color:#256A53">check_circle</span><div style="flex:1"><div style="font:500 14.5px Roboto,sans-serif">Notifications</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">You’ll see send results as they happen</div></div></div>
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.06em;color:#7A5900;margin-top:8px">ACTION NEEDED</div>
+            <div style="background:#FFF4DC;border:1px solid #EBD9AE;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start"><span class="msi" style="font-size:22px;color:#7A5900">timer_off</span><div style="flex:1"><div style="font:500 14.5px Roboto,sans-serif">Exact timing is off</div><div style="font:400 12.5px/1.45 Roboto,sans-serif;color:#5B5E57;margin-top:2px">Schedules will show <b>Approximate timing</b> — sends may drift by ~10 minutes while Android saves battery.</div><div style="display:inline-flex;height:36px;border-radius:18px;background:#7A5900;color:#fff;align-items:center;padding:0 16px;font:500 13px Roboto,sans-serif;margin-top:10px">Turn on “Alarms &amp; reminders”</div></div></div>
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-top:8px">WHEN YOU NEED IT</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center"><span class="msi" style="font-size:22px;color:#5B5E57">person</span><div style="flex:1"><div style="font:500 14.5px Roboto,sans-serif">Contacts</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Android asks the first time you pick a contact — LaterText only ever sees the one you choose</div></div></div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="height:56px;border-radius:28px;background:#256A53;color:#fff;display:flex;align-items:center;justify-content:center;font:500 16px Roboto,sans-serif">Start scheduling</div>
+        </div>
+      </x-import>
+      <p class="fnote">Degraded mode is a first-class state, not an error: schedule rows and the editor label times “≈ 5:00 PM · Approximate timing” until exact-alarm access is granted.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="upcoming">
+  <div class="shead"><span class="snum">04</span><span class="stitle">Upcoming dashboard</span></div>
+  <p class="ssub">The home tab. Time is the loudest element on each card; status is icon + label, never color alone. “Pause all” is a calm tonal chip in the header — visible, not alarming.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Empty state</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="padding:12px 24px 0"><div style="font:600 28px/1.2 'Albert Sans',sans-serif">Upcoming</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:0 32px;gap:0">
+            <div style="width:80px;height:80px;border-radius:24px;background:#ECEAE5;display:flex;align-items:center;justify-content:center;margin-bottom:20px"><span class="msi" style="font-size:40px;color:#5B5E57">hourglass_empty</span></div>
+            <div style="font:500 17px/1.4 Roboto,sans-serif;color:#1B1C1A;max-width:280px">Write a message now — LaterText holds it and sends it at the moment you choose.</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px;width:100%;max-width:280px">
+              <div style="height:48px;border-radius:24px;background:#256A53;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif"><span class="msi" style="font-size:20px">edit</span>New message</div>
+              <div style="height:48px;border-radius:24px;background:#C2EAD7;color:#06301F;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif"><span class="msi" style="font-size:20px">ios_share</span>Share something to LaterText</div>
+            </div>
+            <div style="margin-top:28px;background:#fff;border:1px dashed #C9C6BF;border-radius:16px;padding:14px 16px;text-align:left;max-width:300px">
+              <div style="font:600 11px Roboto,sans-serif;letter-spacing:.06em;color:#256A53;margin-bottom:6px">FOR EXAMPLE</div>
+              <div style="font:400 13px/1.5 Roboto,sans-serif;color:#3A3D37">“Good luck at practice!” → Alex, <b>every Tuesday around 7:30 AM</b>, varying by up to 10 minutes so it never feels automated.</div>
+            </div>
+          </div>
+          <div style="height:80px;background:#F3F1EE;display:flex;align-items:center">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4"><div style="width:64px;height:32px;border-radius:16px;background:#C2EAD7;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:22px;color:#06301F">event_upcoming</span></div><div style="font:600 12px Roboto,sans-serif;margin-top:4px">Upcoming</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#45483F">history</span><div style="font:500 12px Roboto,sans-serif;color:#45483F;margin-top:8px">History</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#45483F">settings</span><div style="font:500 12px Roboto,sans-serif;color:#45483F;margin-top:8px">Settings</div></div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Populated — Today / Tomorrow / Later</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box;position:relative">
+          <div style="padding:12px 20px 0;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font:600 28px/1.2 'Albert Sans',sans-serif">Upcoming</div>
+              <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57;margin-top:2px">5 schedules · all running</div>
+            </div>
+            <div style="height:36px;border-radius:18px;background:#ECEAE5;display:flex;align-items:center;gap:6px;padding:0 14px;font:500 13px Roboto,sans-serif;color:#45483F"><span class="msi" style="font-size:18px">pause_circle</span>Pause all</div>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:8px 16px 0;display:flex;flex-direction:column;gap:8px">
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#256A53;padding:8px 4px 0">TODAY</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#C2EAD7;color:#06301F;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">M</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif">Mom · Mobile</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Thinking of you! Call you this weekend?</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif">5:00 PM</div><div style="font:400 11px Roboto,sans-serif;color:#5B5E57">±15 min</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="font:500 11px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:10px;padding:3px 8px;color:#45483F">SMS</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;color:#45483F"><span class="msi" style="font-size:14px">repeat</span>Every Friday</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">schedule</span>Scheduled</span>
+                <span style="flex:1"></span>
+                <span class="msi" style="font-size:20px;color:#5B5E57">more_vert</span>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#DCE5F4;color:#1B2B4B;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">A</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif">Alex · Mobile</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px"><span class="msi" style="font-size:14px;color:#45483F">image</span>Look what I found at the flea market</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif">6:30 PM</div><div style="font:400 11px Roboto,sans-serif;color:#5B5E57">exact</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="font:500 11px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:10px;padding:3px 8px;color:#45483F">MMS</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;color:#45483F"><span class="msi" style="font-size:14px">looks_one</span>Once</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">schedule</span>Scheduled</span>
+                <span style="flex:1"></span>
+                <span class="msi" style="font-size:20px;color:#5B5E57">more_vert</span>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#F2E3D5;color:#4B2E1B;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">J</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif">Jess · Mobile</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Don’t forget your headphones tomorrow</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif">4:02 PM</div><div style="font:400 11px Roboto,sans-serif;color:#5B5E57">attempted</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="font:500 11px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:10px;padding:3px 8px;color:#45483F">SMS</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;color:#45483F"><span class="msi" style="font-size:14px">looks_one</span>Once</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#FFDF9E;color:#261A00;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">autorenew</span>Retrying · 4:20 PM</span>
+                <span style="flex:1"></span>
+                <span class="msi" style="font-size:20px;color:#5B5E57">more_vert</span>
+              </div>
+            </div>
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#5B5E57;padding:6px 4px 0">TOMORROW</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#E5DCF4;color:#2D1B4B;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">S</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif">Sam · Work</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Reminder: invoices are due Friday.</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif">9:00 AM</div><div style="font:400 11px Roboto,sans-serif;color:#5B5E57">exact</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#ECEAE5;border-radius:10px;padding:3px 8px;color:#45483F"><span class="msi" style="font-size:13px">touch_app</span>Assisted</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;color:#45483F"><span class="msi" style="font-size:14px">repeat</span>Monthly · 1st</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">schedule</span>Scheduled</span>
+                <span style="flex:1"></span>
+                <span class="msi" style="font-size:20px;color:#5B5E57">more_vert</span>
+              </div>
+            </div>
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#5B5E57;padding:6px 4px 0">LATER</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:12px 14px;opacity:.75">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#ECEAE5;color:#45483F;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">D</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif">Dad · Mobile</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Happy Friday, old man.</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif;color:#5B5E57">Fri 8:00 AM</div><div style="font:400 11px Roboto,sans-serif;color:#5B5E57">±30 min</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="font:500 11px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:10px;padding:3px 8px;color:#45483F">SMS</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;color:#45483F"><span class="msi" style="font-size:14px">repeat</span>Every Friday</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#ECEAE5;color:#45483F;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">pause</span>Paused</span>
+                <span style="flex:1"></span>
+                <span class="msi" style="font-size:20px;color:#5B5E57">more_vert</span>
+              </div>
+            </div>
+          </div>
+          <div style="position:absolute;right:16px;bottom:96px;height:56px;border-radius:16px;background:#256A53;color:#fff;display:flex;align-items:center;gap:10px;padding:0 20px;font:500 15px Roboto,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.2)"><span class="msi" style="font-size:22px">edit</span>New message</div>
+          <div style="height:80px;background:#F3F1EE;display:flex;align-items:center;flex:none">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><div style="width:64px;height:32px;border-radius:16px;background:#C2EAD7;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:22px;color:#06301F">event_upcoming</span></div><div style="font:600 12px Roboto,sans-serif;margin-top:4px">Upcoming</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#45483F">history</span><div style="font:500 12px Roboto,sans-serif;color:#45483F;margin-top:8px">History</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#45483F">settings</span><div style="font:500 12px Roboto,sans-serif;color:#45483F;margin-top:8px">Settings</div></div>
+          </div>
+        </div>
+      </x-import>
+      <p class="fnote">Overflow menu per card: Edit · Send now · Duplicate · Pause · Delete. Attachment presence shows as an inline image icon in the preview. In degraded mode all times render “≈ 5:00 PM” with an “Approximate timing” row under the header.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="composer">
+  <div class="shead"><span class="snum">05</span><span class="stitle">Message composer</span></div>
+  <p class="ssub">One recipient, one message. The transport summary line always states — in plain words — how this message will physically leave the phone, and it updates live as content changes.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Composer — plain text</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="height:56px;display:flex;align-items:center;gap:8px;padding:0 8px">
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#45483F">close</span></div>
+            <div style="flex:1;font:600 20px 'Albert Sans',sans-serif">New message</div>
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#45483F">more_vert</span></div>
+          </div>
+          <div style="padding:4px 20px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font:500 13px Roboto,sans-serif;color:#5B5E57">To</span>
+            <span style="display:inline-flex;align-items:center;gap:8px;background:#C2EAD7;border-radius:18px;padding:5px 12px 5px 5px">
+              <span style="width:26px;height:26px;border-radius:50%;background:#06301F;color:#C2EAD7;display:flex;align-items:center;justify-content:center;font:600 12px 'Albert Sans',sans-serif">M</span>
+              <span style="font:500 13.5px Roboto,sans-serif;color:#06301F">Mom · Mobile</span>
+              <span class="msi" style="font-size:16px;color:#06301F">close</span>
+            </span>
+            <span style="flex:1"></span>
+            <span style="display:inline-flex;align-items:center;gap:6px;font:500 13px Roboto,sans-serif;color:#256A53"><span class="msi" style="font-size:18px">open_in_new</span>Open conversation</span>
+          </div>
+          <div style="margin:16px 20px 0;background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:16px;flex:1;display:flex;flex-direction:column">
+            <div style="font:400 16px/1.5 Roboto,sans-serif;color:#1B1C1A">Thinking of you! Call you this weekend?<span style="display:inline-block;width:2px;height:18px;background:#256A53;vertical-align:-3px;margin-left:1px"></span></div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:4px;border-top:1px solid #ECEAE5;padding-top:10px">
+              <div style="width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#45483F">add_photo_alternate</span></div>
+              <div style="width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#45483F">gif_box</span></div>
+              <div style="width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#45483F">content_paste</span></div>
+              <span style="flex:1"></span>
+              <span style="font:400 12px Roboto,sans-serif;color:#5B5E57">38 / 160 · 1 segment</span>
+            </div>
+          </div>
+          <div style="margin:12px 20px 0;display:flex;align-items:center;gap:8px">
+            <span class="msi" style="font-size:18px;color:#256A53">sms</span>
+            <span style="font:400 12.5px Roboto,sans-serif;color:#45483F;flex:1">Sends automatically as <b>SMS</b></span>
+            <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid #DAD7D1;border-radius:16px;padding:5px 12px;font:500 12px Roboto,sans-serif;color:#45483F"><span class="msi" style="font-size:16px">sim_card</span>SIM 1 · Personal<span class="msi" style="font-size:16px">arrow_drop_down</span></span>
+          </div>
+          <div style="display:flex;gap:10px;padding:16px 20px 28px">
+            <div style="flex:1;height:52px;border-radius:26px;border:1px solid #256A53;color:#256A53;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif"><span class="msi" style="font-size:20px">send</span>Send now</div>
+            <div style="flex:1.4;height:52px;border-radius:26px;background:#256A53;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif"><span class="msi" style="font-size:20px">schedule</span>Schedule</div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:14px">
+      <div class="fcap">Content variants (composer body states)</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:8px">LINK + TITLE</div>
+        <div style="font:400 14.5px/1.5 Roboto,sans-serif">This trail looks perfect for us — sat?<br><span style="color:#256A53">alltrails.com/trail/us/wa/lake-serene</span></div>
+        <div style="margin-top:10px;border:1px solid #ECEAE5;border-radius:12px;overflow:hidden;display:flex;align-items:center;gap:12px">
+          <div style="width:64px;height:64px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:20px;color:#5B5E57">link</span></div>
+          <div style="flex:1;padding:6px 10px 6px 0"><div style="font:500 13px Roboto,sans-serif">Lake Serene Trail — 8.2 mi</div><div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57">alltrails.com</div></div>
+          <span class="msi" style="font-size:18px;color:#5B5E57;padding-right:10px">close</span>
+        </div>
+        <div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57;margin-top:8px">Preview is local only — the message sends as plain text (SMS).</div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:8px">IMAGE + CAPTION → MMS</div>
+        <div style="display:flex;gap:10px">
+          <div style="position:relative;width:96px;height:96px;border-radius:12px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center"><span style="font:500 10px ui-monospace,monospace;color:#5B5E57">photo</span><span class="msi" style="position:absolute;top:-6px;right:-6px;font-size:18px;background:#1B1C1A;color:#fff;border-radius:50%;padding:2px">close</span></div>
+          <div style="flex:1"><div style="font:400 14.5px/1.5 Roboto,sans-serif">Look what I found at the flea market</div><div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font:500 11px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:10px;padding:3px 8px;color:#45483F">MMS</div></div>
+        </div>
+        <div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57;margin-top:10px;display:flex;gap:6px;align-items:center"><span class="msi" style="font-size:16px;color:#256A53">compress</span>2.4 MB photo — will be compressed to ~950 KB (carrier-safe)</div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:8px">MESSAGE TOO LARGE</div>
+        <div style="font:400 12px Roboto,sans-serif;color:#B3261E;display:flex;justify-content:space-between"><span>1,642 / 1,600 characters</span><span>11 segments</span></div>
+        <div style="height:4px;border-radius:2px;background:#F9DEDC;margin:8px 0"><div style="width:100%;height:100%;background:#B3261E;border-radius:2px"></div></div>
+        <div style="font:400 12.5px/1.5 Roboto,sans-serif;color:#410E0B">Too long to send reliably as multipart SMS. Trim 42 characters, or attach it as an image to send via MMS.</div>
+      </div>
+      <div style="background:#FFF4DC;border:1px solid #EBD9AE;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#7A5900;margin-bottom:8px">MMS OVER CARRIER-SAFE SIZE</div>
+        <div style="font:400 12.5px/1.5 Roboto,sans-serif;color:#3A3D37">This GIF is 3.8 MB. Some carriers reject media over 1 MB.</div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <div style="height:36px;border-radius:18px;background:#7A5900;color:#fff;display:flex;align-items:center;padding:0 14px;font:500 12.5px Roboto,sans-serif">Compress automatically</div>
+          <div style="height:36px;border-radius:18px;border:1px solid #EBD9AE;color:#7A5900;display:flex;align-items:center;padding:0 14px;font:500 12.5px Roboto,sans-serif">Pick something smaller</div>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:8px">NO SIM / NO SERVICE</div>
+        <div style="display:flex;gap:10px;align-items:flex-start"><span class="msi" style="font-size:20px;color:#B3261E">sim_card_alert</span><div style="font:400 12.5px/1.5 Roboto,sans-serif;color:#3A3D37">No SIM detected. You can still write and schedule — sends will wait and retry once service is back, within your missed-send grace period.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="contacts">
+  <div class="shead"><span class="snum">06</span><span class="stitle">Contact selection</span></div>
+  <p class="ssub">The privacy-preserving system Contact Picker is the primary path — LaterText holds no contact database and only ever receives the single contact the user picks. Manual number entry is always available.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="systag">SYSTEM</span> Android Contact Picker (representative)</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#F4F2F6;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="padding:16px 20px 0"><div style="font:400 22px Roboto,sans-serif;color:#1D1B20">Pick a contact</div><div style="font:400 12.5px Roboto,sans-serif;color:#49454F;margin-top:4px">Shared with LaterText only once</div></div>
+          <div style="margin:14px 20px 0;height:48px;border-radius:24px;background:#E8E4EC;display:flex;align-items:center;gap:10px;padding:0 16px"><span class="msi" style="font-size:20px;color:#49454F">search</span><span style="font:400 14px Roboto,sans-serif;color:#49454F">Search contacts</span></div>
+          <div style="flex:1;padding:10px 8px 0">
+            <div style="display:flex;align-items:center;gap:14px;padding:10px 12px"><div style="width:40px;height:40px;border-radius:50%;background:#D9C7EC;display:flex;align-items:center;justify-content:center;font:500 15px Roboto,sans-serif;color:#3A2354">A</div><div style="font:400 15px Roboto,sans-serif;color:#1D1B20">Alex Rivera</div></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:10px 12px"><div style="width:40px;height:40px;border-radius:50%;background:#C7E0EC;display:flex;align-items:center;justify-content:center;font:500 15px Roboto,sans-serif;color:#173B4A">D</div><div style="font:400 15px Roboto,sans-serif;color:#1D1B20">Dad</div></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:10px 12px;background:#E8E4EC;border-radius:16px;margin:0 4px"><div style="width:40px;height:40px;border-radius:50%;background:#C7ECD4;display:flex;align-items:center;justify-content:center;font:500 15px Roboto,sans-serif;color:#173B28">M</div><div style="flex:1;font:400 15px Roboto,sans-serif;color:#1D1B20">Mom</div><span class="msi msf" style="font-size:22px;color:#6750A4">check_circle</span></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:10px 12px"><div style="width:40px;height:40px;border-radius:50%;background:#ECD9C7;display:flex;align-items:center;justify-content:center;font:500 15px Roboto,sans-serif;color:#4A3117">J</div><div style="font:400 15px Roboto,sans-serif;color:#1D1B20">Jess Park</div></div>
+            <div style="display:flex;align-items:center;gap:14px;padding:10px 12px"><div style="width:40px;height:40px;border-radius:50%;background:#E5ECC7;display:flex;align-items:center;justify-content:center;font:500 15px Roboto,sans-serif;color:#39441A">S</div><div style="font:400 15px Roboto,sans-serif;color:#1D1B20">Sam Okafor</div></div>
+          </div>
+          <div style="padding:16px 20px 28px;display:flex;justify-content:flex-end;gap:10px">
+            <div style="height:44px;border-radius:22px;display:flex;align-items:center;padding:0 18px;font:500 14px Roboto,sans-serif;color:#6750A4">Cancel</div>
+            <div style="height:44px;border-radius:22px;background:#6750A4;color:#fff;display:flex;align-items:center;padding:0 22px;font:500 14px Roboto,sans-serif">Done</div>
+          </div>
+        </div>
+      </x-import>
+      <p class="fnote">System-owned: rendered here for flow continuity only. Not restyled by LaterText — it keeps stock Material You colors.</p>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:14px">
+      <div class="fcap">App-owned entry, return &amp; edge states</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">ENTRY POINT (EMPTY “TO” FIELD)</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font:500 13px Roboto,sans-serif;color:#5B5E57">To</span>
+          <div style="display:inline-flex;align-items:center;gap:6px;height:40px;border-radius:20px;background:#C2EAD7;color:#06301F;padding:0 14px;font:500 13px Roboto,sans-serif"><span class="msi" style="font-size:18px">person</span>Choose contact</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;height:40px;border-radius:20px;border:1px solid #DAD7D1;color:#45483F;padding:0 14px;font:500 13px Roboto,sans-serif"><span class="msi" style="font-size:18px">dialpad</span>Type a number</div>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">MULTIPLE NUMBERS → BOTTOM SHEET</div>
+        <div style="font:500 15px 'Albert Sans',sans-serif;margin-bottom:10px">Which number for Mom?</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px;border:1.5px solid #256A53;border-radius:12px;padding:10px 14px;background:#F0F8F3"><span class="msi msf" style="font-size:20px;color:#256A53">radio_button_checked</span><div style="flex:1"><div style="font:500 14px Roboto,sans-serif">Mobile</div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57">+1 (555) 014-2683</div></div><span style="font:500 10.5px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:8px;padding:2px 7px">usual</span></div>
+          <div style="display:flex;align-items:center;gap:12px;border:1px solid #DAD7D1;border-radius:12px;padding:10px 14px"><span class="msi" style="font-size:20px;color:#5B5E57">radio_button_unchecked</span><div style="flex:1"><div style="font:500 14px Roboto,sans-serif">Work</div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57">+1 (555) 014-9920</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;border:1px solid #DAD7D1;border-radius:12px;padding:10px 14px"><span class="msi" style="font-size:20px;color:#5B5E57">radio_button_unchecked</span><div style="flex:1"><div style="font:500 14px Roboto,sans-serif">Home</div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57">+1 (555) 014-7301</div></div></div>
+        </div>
+        <div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57;margin-top:10px">The chosen number is remembered for this schedule and shown on every card as “Mom · Mobile”.</div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">MANUAL NUMBER ENTRY</div>
+        <div style="border:1.5px solid #256A53;border-radius:12px;padding:10px 14px"><div style="font:400 11px Roboto,sans-serif;color:#256A53">Phone number</div><div style="font:500 17px 'Albert Sans',sans-serif;margin-top:2px">+1 (555) 014-26<span style="display:inline-block;width:2px;height:16px;background:#256A53;vertical-align:-2px"></span></div></div>
+        <div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57;margin-top:8px">Not in your contacts — that’s fine. The number is used as-is and shown unformatted on cards.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="schedule">
+  <div class="shead"><span class="snum">07</span><span class="stitle">Schedule editor</span></div>
+  <p class="ssub">A bottom sheet over the composer. Jitter is explained in plain language and its next occurrences are shown with the offsets already sampled — each offset is generated once, persisted, and never re-rolls on reopen.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Schedule sheet — weekly + jitter</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:rgba(27,28,26,.35);display:flex;flex-direction:column;justify-content:flex-end;box-sizing:border-box">
+          <div style="background:#FAF9F7;border-radius:28px 28px 0 0;padding:8px 20px 24px">
+            <div style="width:32px;height:4px;border-radius:2px;background:#C9C6BF;margin:4px auto 14px"></div>
+            <div style="font:600 20px 'Albert Sans',sans-serif;margin-bottom:14px">Schedule</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <span style="font:500 12.5px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:16px;padding:7px 13px;color:#45483F">Once</span>
+              <span style="font:500 12.5px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:16px;padding:7px 13px;color:#45483F">Every day</span>
+              <span style="display:inline-flex;align-items:center;gap:5px;font:500 12.5px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:16px;padding:7px 13px"><span class="msi" style="font-size:15px">check</span>Weekly</span>
+              <span style="font:500 12.5px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:16px;padding:7px 13px;color:#45483F">Monthly</span>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px">
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid #DAD7D1;display:flex;align-items:center;justify-content:center;font:500 13px Roboto,sans-serif;color:#5B5E57">S</div>
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid #DAD7D1;display:flex;align-items:center;justify-content:center;font:500 13px Roboto,sans-serif;color:#5B5E57">M</div>
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid #DAD7D1;display:flex;align-items:center;justify-content:center;font:500 13px Roboto,sans-serif;color:#5B5E57">T</div>
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid #DAD7D1;display:flex;align-items:center;justify-content:center;font:500 13px Roboto,sans-serif;color:#5B5E57">W</div>
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid #DAD7D1;display:flex;align-items:center;justify-content:center;font:500 13px Roboto,sans-serif;color:#5B5E57">T</div>
+              <div style="width:38px;height:38px;border-radius:50%;background:#256A53;color:#fff;display:flex;align-items:center;justify-content:center;font:600 13px Roboto,sans-serif">F</div>
+              <div style="width:38px;height:38px;border-radius:50%;border:1px solid #DAD7D1;display:flex;align-items:center;justify-content:center;font:500 13px Roboto,sans-serif;color:#5B5E57">S</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:12px 16px">
+              <div><div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57">Send at</div><div style="font:600 26px 'Albert Sans',sans-serif">5:00 PM</div><div style="font:400 11px Roboto,sans-serif;color:#5B5E57">Your time zone · GMT−7</div></div>
+              <span class="msi" style="font-size:22px;color:#256A53">edit</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 2px 6px">
+              <div style="flex:1"><div style="font:500 14px Roboto,sans-serif">Vary the exact minute</div><div style="font:400 12px/1.45 Roboto,sans-serif;color:#5B5E57">Each send shifts by a random amount before or after 5:00 PM</div></div>
+              <div style="width:48px;height:28px;border-radius:14px;background:#256A53;position:relative"><div style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:14px;color:#256A53">check</span></div></div>
+            </div>
+            <div style="padding:2px 2px 0">
+              <div style="display:flex;justify-content:space-between;font:400 11.5px Roboto,sans-serif;color:#5B5E57"><span>Up to ±15 minutes</span><span>Range: 4:45 – 5:15 PM</span></div>
+              <div style="height:20px;display:flex;align-items:center;margin-top:2px"><div style="flex:1;height:4px;border-radius:2px;background:#DAD7D1;position:relative"><div style="width:50%;height:100%;background:#256A53;border-radius:2px"></div><div style="position:absolute;left:50%;top:-8px;width:20px;height:20px;border-radius:50%;background:#256A53;transform:translateX(-50%)"></div></div></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <div style="flex:1;border:1px solid #DAD7D1;border-radius:12px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between"><span style="font:400 12px Roboto,sans-serif;color:#5B5E57">Ends</span><span style="font:500 12.5px Roboto,sans-serif;display:flex;align-items:center">Never<span class="msi" style="font-size:17px;color:#5B5E57">arrow_drop_down</span></span></div>
+              <div style="flex:1.35;border:1px solid #DAD7D1;border-radius:12px;padding:9px 12px;display:flex;align-items:center;justify-content:space-between"><span style="font:400 12px Roboto,sans-serif;color:#5B5E57">If missed</span><span style="font:500 12.5px Roboto,sans-serif;display:flex;align-items:center">Send ASAP<span class="msi" style="font-size:17px;color:#5B5E57">arrow_drop_down</span></span></div>
+            </div>
+            <div style="margin-top:14px;background:#F3F1EE;border-radius:16px;padding:12px 16px">
+              <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57">NEXT 5 SENDS (ALREADY DRAWN)</div>
+              <div style="display:grid;grid-template-columns:1fr auto auto;gap:5px 14px;margin-top:8px;font:400 12.5px Roboto,sans-serif;color:#3A3D37">
+                <span>Fri, Aug 28</span><span style="font:600 12.5px 'Albert Sans',sans-serif;text-align:right">5:07 PM</span><span style="color:#5B5E57;width:52px;text-align:right;white-space:nowrap">+7 min</span>
+                <span>Fri, Sep 4</span><span style="font:600 12.5px 'Albert Sans',sans-serif;text-align:right">4:52 PM</span><span style="color:#5B5E57;width:52px;text-align:right;white-space:nowrap">−8 min</span>
+                <span>Fri, Sep 11</span><span style="font:600 12.5px 'Albert Sans',sans-serif;text-align:right">5:13 PM</span><span style="color:#5B5E57;width:52px;text-align:right;white-space:nowrap">+13 min</span>
+                <span>Fri, Sep 18</span><span style="font:600 12.5px 'Albert Sans',sans-serif;text-align:right">4:47 PM</span><span style="color:#5B5E57;width:52px;text-align:right;white-space:nowrap">−13 min</span>
+                <span>Fri, Sep 25</span><span style="font:600 12.5px 'Albert Sans',sans-serif;text-align:right">5:02 PM</span><span style="color:#5B5E57;width:52px;text-align:right;white-space:nowrap">+2 min</span>
+              </div>
+            </div>
+            <div style="font:400 13px/1.5 Roboto,sans-serif;color:#3A3D37;margin-top:14px;padding:0 2px">Send <b>“Thinking of you!”</b> to <b>Mom</b> every <b>Friday</b> around <b>5:00 PM</b>, varying by up to 15 minutes.</div>
+            <div style="height:52px;border-radius:26px;background:#256A53;color:#fff;display:flex;align-items:center;justify-content:center;font:500 15px Roboto,sans-serif;margin-top:14px">Save schedule</div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:14px">
+      <div class="fcap">Monthly edge case &amp; degraded timing</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:8px">MONTHLY ON THE 31ST</div>
+        <div style="font:400 13px/1.5 Roboto,sans-serif;color:#3A3D37;margin-bottom:10px">Some months don’t have a day 31. What should happen then?</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px;border:1.5px solid #256A53;background:#F0F8F3;border-radius:12px;padding:10px 14px"><span class="msi msf" style="font-size:20px;color:#256A53">radio_button_checked</span><div><div style="font:500 14px Roboto,sans-serif">Send on the last day instead</div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57">Feb 28, Apr 30, Jun 30…</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;border:1px solid #DAD7D1;border-radius:12px;padding:10px 14px"><span class="msi" style="font-size:20px;color:#5B5E57">radio_button_unchecked</span><div><div style="font:500 14px Roboto,sans-serif">Skip that month</div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57">Only send when the 31st exists</div></div></div>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:8px">DEGRADED: EXACT ALARMS OFF</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#F3F1EE;border-radius:12px;padding:10px 14px"><div><div style="font:400 11px Roboto,sans-serif;color:#5B5E57">Send at</div><div style="font:600 20px 'Albert Sans',sans-serif">≈ 5:00 PM</div></div><span style="display:inline-flex;align-items:center;gap:5px;font:500 11px Roboto,sans-serif;background:#FFDF9E;color:#261A00;border-radius:10px;padding:3px 9px"><span class="msi" style="font-size:14px">timer_off</span>Approximate timing</span></div>
+        <div style="font:400 11.5px/1.5 Roboto,sans-serif;color:#5B5E57;margin-top:8px">Android may shift the send by ~10 minutes to save battery. A “Turn on exact timing” link opens the system setting.</div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:8px">MISSED-SEND OPTIONS</div>
+        <div style="font:400 12.5px/1.7 Roboto,sans-serif;color:#3A3D37">· <b>Send as soon as possible</b> — within the grace period (default 4 h)<br>· <b>Skip this occurrence</b> — marked “Missed” in History<br>· <b>Ask me</b> — a notification offers Send now / Skip</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="gif">
+  <div class="shead"><span class="snum">08</span><span class="stitle">GIF selector (GIPHY)</span></div>
+  <p class="ssub">A sheet over the composer. The selected GIF is downloaded and stored locally when the schedule is saved — future sends never depend on GIPHY being reachable.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> GIF browser</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:rgba(27,28,26,.35);display:flex;flex-direction:column;justify-content:flex-end;box-sizing:border-box">
+          <div style="background:#FAF9F7;border-radius:28px 28px 0 0;padding:8px 20px 20px;height:78%;display:flex;flex-direction:column;box-sizing:border-box">
+            <div style="width:32px;height:4px;border-radius:2px;background:#C9C6BF;margin:4px auto 14px;flex:none"></div>
+            <div style="display:flex;align-items:center;gap:10px;flex:none">
+              <div style="flex:1;height:48px;border-radius:24px;background:#ECEAE5;display:flex;align-items:center;gap:10px;padding:0 16px"><span class="msi" style="font-size:20px;color:#45483F">search</span><span style="font:400 14px Roboto,sans-serif;color:#5B5E57">Search GIPHY</span></div>
+              <span style="display:inline-flex;align-items:center;gap:5px;font:500 12px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:16px;padding:6px 12px;color:#45483F">Rating: PG<span class="msi" style="font-size:16px">arrow_drop_down</span></span>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:12px;flex:none">
+              <span style="display:inline-flex;align-items:center;gap:5px;font:500 12.5px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:16px;padding:6px 13px"><span class="msi" style="font-size:15px">trending_up</span>Trending</span>
+              <span style="font:500 12.5px Roboto,sans-serif;border:1px solid #DAD7D1;border-radius:16px;padding:6px 13px;color:#45483F">Recent</span>
+            </div>
+            <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:118px;gap:8px;margin-top:12px;overflow:hidden">
+              <div style="border-radius:12px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center;font:500 10px ui-monospace,monospace;color:#5B5E57">gif · high five</div>
+              <div style="border-radius:12px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center;font:500 10px ui-monospace,monospace;color:#5B5E57">gif · good luck</div>
+              <div style="border-radius:12px;border:3px solid #256A53;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center;position:relative;font:500 10px ui-monospace,monospace;color:#5B5E57">gif · hug<span class="msi msf" style="position:absolute;top:6px;right:6px;font-size:20px;color:#256A53;background:#fff;border-radius:50%">check_circle</span></div>
+              <div style="border-radius:12px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center;font:500 10px ui-monospace,monospace;color:#5B5E57">gif · friday dance</div>
+              <div style="border-radius:12px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center;font:500 10px ui-monospace,monospace;color:#5B5E57">gif · miss you</div>
+              <div style="border-radius:12px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center;font:500 10px ui-monospace,monospace;color:#5B5E57">gif · congrats</div>
+            </div>
+            <div style="flex:none;display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:10px 14px;margin-top:12px">
+              <div style="width:52px;height:52px;border-radius:10px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center;font:600 9px ui-monospace,monospace;color:#5B5E57">GIF</div>
+              <div style="flex:1"><div style="font:500 13.5px Roboto,sans-serif">“hug” · 2.1 MB</div><div style="font:400 11.5px Roboto,sans-serif;color:#7A5900;display:flex;align-items:center;gap:4px"><span class="msi" style="font-size:14px">compress</span>Will compress to fit carrier limit</div></div>
+              <div style="height:40px;border-radius:20px;background:#256A53;color:#fff;display:flex;align-items:center;padding:0 18px;font:500 13.5px Roboto,sans-serif">Use GIF</div>
+            </div>
+            <div style="flex:none;text-align:center;font:600 10px Roboto,sans-serif;letter-spacing:.08em;color:#5B5E57;margin-top:10px">POWERED BY GIPHY</div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:14px">
+      <div class="fcap">Selector states</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">LOADING</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div style="height:64px;border-radius:12px;background:#ECEAE5"></div><div style="height:64px;border-radius:12px;background:#F3F1EE"></div><div style="height:64px;border-radius:12px;background:#F3F1EE"></div><div style="height:64px;border-radius:12px;background:#ECEAE5"></div></div>
+        <div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57;margin-top:8px">Shimmering placeholder tiles; no spinners over content.</div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start"><span class="msi" style="font-size:22px;color:#5B5E57">cloud_off</span><div><div style="font:500 13.5px Roboto,sans-serif">You’re offline</div><div style="font:400 12px/1.5 Roboto,sans-serif;color:#5B5E57">Recent GIFs are still available — they’re stored on your phone. New searches need a connection.</div></div></div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start"><span class="msi" style="font-size:22px;color:#5B5E57">search_off</span><div><div style="font:500 13.5px Roboto,sans-serif">Nothing for “blorptastic”</div><div style="font:400 12px/1.5 Roboto,sans-serif;color:#5B5E57">Try a simpler word — “happy”, “hug”, “congrats”.</div></div></div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start"><span class="msi" style="font-size:22px;color:#B3261E">error</span><div><div style="font:500 13.5px Roboto,sans-serif">GIPHY isn’t responding</div><div style="font:400 12px/1.5 Roboto,sans-serif;color:#5B5E57">Your scheduled GIFs are unaffected — they’re already saved locally. <span style="color:#256A53;font-weight:500">Try again</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="share">
+  <div class="shead"><span class="snum">09</span><span class="stitle">Share-sheet intake &amp; selected text</span></div>
+  <p class="ssub">Android Sharesheet → LaterText → imported composer → pick recipient → edit → schedule. Nothing ever sends straight from a share intent — including Direct Share targets, which only preselect the recipient.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="systag">SYSTEM</span> Sharesheet with LaterText targets</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:rgba(0,0,0,.4);display:flex;flex-direction:column;justify-content:flex-end;box-sizing:border-box">
+          <div style="background:#F4F2F6;border-radius:28px 28px 0 0;padding:8px 20px 28px">
+            <div style="width:32px;height:4px;border-radius:2px;background:#C6C1CC;margin:4px auto 14px"></div>
+            <div style="background:#fff;border-radius:16px;padding:12px 14px;display:flex;gap:12px;align-items:center">
+              <div style="width:44px;height:44px;border-radius:10px;background:repeating-linear-gradient(45deg,#E8E4EC,#E8E4EC 6px,#F1EEF4 6px,#F1EEF4 12px);display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:20px;color:#49454F">link</span></div>
+              <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif;color:#1D1B20;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Lake Serene Trail — 8.2 mi round trip</div><div style="font:400 12px Roboto,sans-serif;color:#49454F">alltrails.com · from Chrome</div></div>
+            </div>
+            <div style="font:500 12px Roboto,sans-serif;color:#49454F;margin:16px 0 10px">Direct Share</div>
+            <div style="display:flex;gap:18px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px"><div style="position:relative;width:52px;height:52px;border-radius:50%;background:#C7ECD4;display:flex;align-items:center;justify-content:center;font:600 20px 'Albert Sans',sans-serif;color:#173B28">M<div style="position:absolute;bottom:-3px;right:-3px;width:22px;height:22px;border-radius:7px;background:#256A53;display:flex;align-items:center;justify-content:center;border:2px solid #F4F2F6"><span class="msi msf" style="font-size:12px;color:#fff">schedule_send</span></div></div><div style="font:400 11px/1.3 Roboto,sans-serif;color:#1D1B20;text-align:center">Schedule with Mom</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px"><div style="position:relative;width:52px;height:52px;border-radius:50%;background:#D9C7EC;display:flex;align-items:center;justify-content:center;font:600 20px 'Albert Sans',sans-serif;color:#3A2354">A<div style="position:absolute;bottom:-3px;right:-3px;width:22px;height:22px;border-radius:7px;background:#256A53;display:flex;align-items:center;justify-content:center;border:2px solid #F4F2F6"><span class="msi msf" style="font-size:12px;color:#fff">schedule_send</span></div></div><div style="font:400 11px/1.3 Roboto,sans-serif;color:#1D1B20;text-align:center">Schedule with Alex</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px"><div style="width:52px;height:52px;border-radius:50%;background:#E8E4EC;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#49454F">chat</span></div><div style="font:400 11px/1.3 Roboto,sans-serif;color:#1D1B20;text-align:center">Messages</div></div>
+            </div>
+            <div style="font:500 12px Roboto,sans-serif;color:#49454F;margin:18px 0 10px">Apps</div>
+            <div style="display:flex;gap:18px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px"><div style="width:52px;height:52px;border-radius:14px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:26px;color:#fff">schedule_send</span></div><div style="font:400 11px Roboto,sans-serif;color:#1D1B20">LaterText</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px"><div style="width:52px;height:52px;border-radius:14px;background:#E8E4EC"></div><div style="font:400 11px Roboto,sans-serif;color:#49454F">Gmail</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px"><div style="width:52px;height:52px;border-radius:14px;background:#E8E4EC"></div><div style="font:400 11px Roboto,sans-serif;color:#49454F">Drive</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px"><div style="width:52px;height:52px;border-radius:14px;background:#E8E4EC"></div><div style="font:400 11px Roboto,sans-serif;color:#49454F">Copy</div></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+      <p class="fnote">Direct Share exposes up to 4 recent/favorite recipients as “Schedule with …” shortcut targets. Picking one opens the composer with recipient + content prefilled — never an automatic send.</p>
+    </div>
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Imported composer (shared URL, no recipient yet)</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="height:56px;display:flex;align-items:center;gap:8px;padding:0 8px">
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#45483F">close</span></div>
+            <div style="flex:1;font:600 20px 'Albert Sans',sans-serif">New message</div>
+          </div>
+          <div style="margin:0 20px;background:#C2EAD7;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px"><span class="msi" style="font-size:18px;color:#06301F">download_done</span><span style="font:400 12.5px Roboto,sans-serif;color:#06301F;flex:1">Imported from Chrome — edit anything before scheduling</span></div>
+          <div style="padding:14px 20px 0;display:flex;align-items:center;gap:10px">
+            <span style="font:500 13px Roboto,sans-serif;color:#5B5E57">To</span>
+            <div style="display:inline-flex;align-items:center;gap:6px;height:40px;border-radius:20px;background:#C2EAD7;color:#06301F;padding:0 14px;font:500 13px Roboto,sans-serif"><span class="msi" style="font-size:18px">person</span>Choose contact</div>
+            <div style="display:inline-flex;align-items:center;gap:6px;height:40px;border-radius:20px;border:1px solid #DAD7D1;color:#45483F;padding:0 14px;font:500 13px Roboto,sans-serif"><span class="msi" style="font-size:18px">dialpad</span>Type a number</div>
+          </div>
+          <div style="margin:14px 20px 0;background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:16px;flex:1;display:flex;flex-direction:column">
+            <div style="font:400 16px/1.5 Roboto,sans-serif">Lake Serene Trail — 8.2 mi round trip<br><span style="color:#256A53">alltrails.com/trail/us/wa/lake-serene</span></div>
+            <div style="margin-top:12px;border:1px solid #ECEAE5;border-radius:12px;overflow:hidden;display:flex;align-items:center;gap:12px">
+              <div style="width:64px;height:64px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 6px,#F3F1EE 6px,#F3F1EE 12px);display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:20px;color:#5B5E57">link</span></div>
+              <div style="flex:1;padding:6px 10px 6px 0"><div style="font:500 13px Roboto,sans-serif">Lake Serene Trail — 8.2 mi</div><div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57">alltrails.com</div></div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:4px;border-top:1px solid #ECEAE5;padding-top:10px">
+              <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#45483F">add_photo_alternate</span></div>
+              <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#45483F">gif_box</span></div>
+              <span style="flex:1"></span>
+              <span style="font:400 12px Roboto,sans-serif;color:#5B5E57">78 / 160 · 1 segment</span>
+            </div>
+          </div>
+          <div style="margin:12px 20px 0;display:flex;align-items:center;gap:8px"><span class="msi" style="font-size:18px;color:#256A53">sms</span><span style="font:400 12.5px Roboto,sans-serif;color:#45483F">Sends automatically as <b>SMS</b> once a recipient is chosen</span></div>
+          <div style="display:flex;gap:10px;padding:16px 20px 28px">
+            <div style="flex:1;height:52px;border-radius:26px;border:1px solid #C9C6BF;color:#A8A69F;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif"><span class="msi" style="font-size:20px">send</span>Send now</div>
+            <div style="flex:1.4;height:52px;border-radius:26px;background:#B9C4BE;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif"><span class="msi" style="font-size:20px">schedule</span>Schedule</div>
+          </div>
+        </div>
+      </x-import>
+      <p class="fnote">Actions stay disabled until a recipient exists. Shared HTML is converted to editable plain text; a screenshot + URL share becomes image attachment + text.</p>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:14px">
+      <div class="fcap">Intake states &amp; selected-text entry</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">MEDIA IMPORT — LOADING</div>
+        <div style="display:flex;align-items:center;gap:12px"><div style="width:64px;height:64px;border-radius:12px;background:#ECEAE5;position:relative;overflow:hidden"><div style="position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.7) 50%,transparent 70%)"></div></div><div style="flex:1"><div style="font:500 13.5px Roboto,sans-serif">Importing photo…</div><div style="height:4px;border-radius:2px;background:#ECEAE5;margin-top:8px"><div style="width:60%;height:100%;border-radius:2px;background:#256A53"></div></div></div></div>
+      </div>
+      <div style="background:#FFF4DC;border:1px solid #EBD9AE;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#7A5900;margin-bottom:8px">MULTIPLE IMAGES SHARED</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px"><div style="width:44px;height:44px;border-radius:8px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 5px,#F3F1EE 5px,#F3F1EE 10px)"></div><div style="width:44px;height:44px;border-radius:8px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 5px,#F3F1EE 5px,#F3F1EE 10px)"></div><div style="width:44px;height:44px;border-radius:8px;background:repeating-linear-gradient(45deg,#ECEAE5,#ECEAE5 5px,#F3F1EE 5px,#F3F1EE 10px)"></div></div>
+        <div style="font:400 12.5px/1.5 Roboto,sans-serif;color:#3A3D37">3 photos ≈ 2.8 MB — over the carrier-safe MMS size. Keep one, or let LaterText compress all three.</div>
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">TEXT-SELECTION TOOLBAR (ACTION_PROCESS_TEXT)</div>
+        <div style="font:400 13px/1.6 Roboto,sans-serif;color:#3A3D37;background:#F3F1EE;border-radius:10px;padding:10px 12px">The farmers market moved to <span style="background:#C2EAD7">Saturdays 9–1 at Pioneer Park</span> starting next week.</div>
+        <div style="display:inline-flex;align-items:center;background:#1B1C1A;border-radius:22px;padding:4px;margin-top:10px;gap:2px">
+          <span style="font:500 12.5px Roboto,sans-serif;color:#fff;padding:7px 13px">Copy</span>
+          <span style="font:500 12.5px Roboto,sans-serif;color:#fff;padding:7px 13px">Share</span>
+          <span style="font:500 12.5px Roboto,sans-serif;color:#1B1C1A;background:#C2EAD7;border-radius:18px;padding:7px 13px">Schedule message</span>
+        </div>
+        <div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57;margin-top:8px">Opens the composer with the selection as the message body. No clipboard monitoring — pasting is always an explicit button in the composer.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="detail">
+  <div class="shead"><span class="snum">10</span><span class="stitle">Scheduled-message detail</span></div>
+  <p class="ssub">Everything about one schedule in one place, including the sampled jitter offset for the next send. Destructive actions on recurring schedules always confirm.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Detail — recurring with jitter</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="height:56px;display:flex;align-items:center;gap:8px;padding:0 8px;flex:none">
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#45483F">arrow_back</span></div>
+            <div style="flex:1;font:600 20px 'Albert Sans',sans-serif">Schedule</div>
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#45483F">more_vert</span></div>
+          </div>
+          <div style="padding:4px 20px 0;display:flex;align-items:center;gap:14px;flex:none">
+            <div style="width:52px;height:52px;border-radius:50%;background:#C2EAD7;color:#06301F;display:flex;align-items:center;justify-content:center;font:600 20px 'Albert Sans',sans-serif">M</div>
+            <div style="flex:1"><div style="font:600 18px 'Albert Sans',sans-serif">Mom · Mobile</div><div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">+1 (555) 014-2683</div></div>
+            <span style="display:inline-flex;align-items:center;gap:5px;font:500 11px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:10px;padding:4px 9px"><span class="msi" style="font-size:14px">schedule</span>Scheduled</span>
+          </div>
+          <div style="margin:14px 20px 0;background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;flex:none">
+            <div style="font:400 15px/1.55 Roboto,sans-serif">Thinking of you! Call you this weekend?</div>
+          </div>
+          <div style="margin:10px 20px 0;background:#fff;border:1px solid #DAD7D1;border-radius:16px;flex:none">
+            <div style="display:flex;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Next send</span><span style="font:600 13px 'Albert Sans',sans-serif">Fri, Aug 28 · 5:07 PM</span></div>
+            <div style="display:flex;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Rule</span><span style="font:500 13px Roboto,sans-serif">Every Friday at 5:00 PM</span></div>
+            <div style="display:flex;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Jitter</span><span style="font:500 13px Roboto,sans-serif">±15 min · this one drew +7</span></div>
+            <div style="display:flex;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Transport</span><span style="font:500 13px Roboto,sans-serif">SMS · automatic</span></div>
+            <div style="display:flex;justify-content:space-between;padding:11px 16px"><span style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">SIM</span><span style="font:500 13px Roboto,sans-serif">SIM 1 · Personal</span></div>
+          </div>
+          <div style="margin:10px 20px 0;background:#F3F1EE;border-radius:16px;padding:12px 16px;flex:none">
+            <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57">THEN</div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:4px 14px;margin-top:6px;font:400 12.5px Roboto,sans-serif;color:#3A3D37">
+              <span>Fri, Sep 4</span><span style="font:600 12.5px 'Albert Sans',sans-serif">4:52 PM</span>
+              <span>Fri, Sep 11</span><span style="font:600 12.5px 'Albert Sans',sans-serif">5:13 PM</span>
+              <span>Fri, Sep 18</span><span style="font:600 12.5px 'Albert Sans',sans-serif">4:47 PM</span>
+            </div>
+          </div>
+          <div style="margin:10px 20px 0;font:400 11px Roboto,sans-serif;color:#8A8D84;flex:none">Created Aug 12, 2026 · Last edited Aug 20, 2026</div>
+          <div style="flex:1"></div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:0 16px;flex:none">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0"><span class="msi" style="font-size:22px;color:#256A53">edit</span><span style="font:500 10.5px Roboto,sans-serif;color:#45483F">Edit</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0"><span class="msi" style="font-size:22px;color:#256A53">pause</span><span style="font:500 10.5px Roboto,sans-serif;color:#45483F">Pause</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0"><span class="msi" style="font-size:22px;color:#256A53">send</span><span style="font:500 10.5px Roboto,sans-serif;color:#45483F">Send now</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0"><span class="msi" style="font-size:22px;color:#256A53">content_copy</span><span style="font:500 10.5px Roboto,sans-serif;color:#45483F">Duplicate</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0"><span class="msi" style="font-size:22px;color:#B3261E">delete</span><span style="font:500 10.5px Roboto,sans-serif;color:#B3261E">Delete</span></div>
+          </div>
+          <div style="margin:8px 20px 28px;height:52px;border-radius:26px;border:1px solid #256A53;color:#256A53;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif;flex:none"><span class="msi" style="font-size:20px">open_in_new</span>Open conversation in Messages</div>
+        </div>
+      </x-import>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:14px">
+      <div class="fcap">Delete confirmation (recurring)</div>
+      <div style="background:#fff;border-radius:28px;padding:22px 24px;box-shadow:0 8px 32px rgba(0,0,0,.16);max-width:340px">
+        <span class="msi" style="font-size:26px;color:#B3261E">delete_forever</span>
+        <div style="font:600 18px 'Albert Sans',sans-serif;margin-top:12px">Delete this recurring schedule?</div>
+        <div style="font:400 13.5px/1.55 Roboto,sans-serif;color:#5B5E57;margin-top:8px">“Thinking of you!” to Mom, every Friday, will stop for good. Past sends stay in History.</div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
+          <div style="height:40px;border-radius:20px;display:flex;align-items:center;padding:0 16px;font:500 13.5px Roboto,sans-serif;color:#256A53">Keep it</div>
+          <div style="height:40px;border-radius:20px;background:#B3261E;color:#fff;display:flex;align-items:center;padding:0 16px;font:500 13.5px Roboto,sans-serif">Delete schedule</div>
+        </div>
+      </div>
+      <div class="fcap" style="margin-top:12px">Assisted (RCS) schedule — detail differences</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Transport</span><span style="display:inline-flex;align-items:center;gap:5px;font:500 12px Roboto,sans-serif;background:#ECEAE5;border-radius:10px;padding:3px 9px;color:#45483F"><span class="msi" style="font-size:14px">touch_app</span>Assisted · you tap send</span></div>
+        <div style="font:400 12.5px/1.55 Roboto,sans-serif;color:#3A3D37;margin-top:6px">At 9:00 AM a notification opens Messages with this text prefilled — RCS can’t be sent silently by another app. If you don’t act within the grace period (4 h), it’s marked <b>Missed</b>.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="history">
+  <div class="shead"><span class="snum">11</span><span class="stitle">History</span></div>
+  <p class="ssub">Every attempt, filterable by status, recipient, and date. “Sent to carrier” and “Delivered” are deliberately distinct; “Unknown” is an honest state, not an error.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> History — all statuses</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="padding:12px 20px 0;flex:none"><div style="font:600 28px/1.2 'Albert Sans',sans-serif">History</div></div>
+          <div style="display:flex;gap:6px;padding:12px 20px 4px;flex:none">
+            <span style="display:inline-flex;align-items:center;gap:4px;font:500 12px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:16px;padding:6px 12px">Status: All<span class="msi" style="font-size:16px">arrow_drop_down</span></span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font:500 12px Roboto,sans-serif;border:1px solid #DAD7D1;color:#45483F;border-radius:16px;padding:6px 12px">Recipient<span class="msi" style="font-size:16px">arrow_drop_down</span></span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font:500 12px Roboto,sans-serif;border:1px solid #DAD7D1;color:#45483F;border-radius:16px;padding:6px 12px">Last 30 days<span class="msi" style="font-size:16px">arrow_drop_down</span></span>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:4px 16px 0">
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#5B5E57;padding:8px 4px 6px">TODAY</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid #ECEAE5">
+                <div style="width:36px;height:36px;border-radius:50%;background:#C2EAD7;color:#06301F;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">M</div>
+                <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif">Mom <span style="font:400 11px Roboto,sans-serif;color:#5B5E57">· SMS · 1 attempt</span></div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Thinking of you! Call you this…</div></div>
+                <div style="text-align:right"><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#C2EAD7;color:#06301F;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">done_all</span>Delivered</span><div style="font:400 10.5px Roboto,sans-serif;color:#5B5E57;margin-top:3px">sched 5:00 · sent 5:07 PM</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid #ECEAE5">
+                <div style="width:36px;height:36px;border-radius:50%;background:#DCE5F4;color:#1B2B4B;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">A</div>
+                <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif">Alex <span style="font:400 11px Roboto,sans-serif;color:#5B5E57">· MMS · 1 attempt</span></div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="msi" style="font-size:13px">image</span> Look what I found at the flea…</div></div>
+                <div style="text-align:right"><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#E8F0E9;color:#1F4A33;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">check</span>Sent to carrier</span><div style="font:400 10.5px Roboto,sans-serif;color:#5B5E57;margin-top:3px">delivery receipt unavailable</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid #ECEAE5">
+                <div style="width:36px;height:36px;border-radius:50%;background:#F2E3D5;color:#4B2E1B;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">J</div>
+                <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif">Jess <span style="font:400 11px Roboto,sans-serif;color:#5B5E57">· SMS · 2 attempts</span></div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Don’t forget your headphones…</div></div>
+                <div style="text-align:right"><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#FFDF9E;color:#261A00;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">autorenew</span>Retrying</span><div style="font:400 10.5px Roboto,sans-serif;color:#5B5E57;margin-top:3px">next try 4:20 PM</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 14px">
+                <div style="width:36px;height:36px;border-radius:50%;background:#E5DCF4;color:#2D1B4B;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">S</div>
+                <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif">Sam <span style="font:400 11px Roboto,sans-serif;color:#5B5E57">· SMS · 3 attempts</span></div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Reminder: invoices are due Fri…</div></div>
+                <div style="text-align:right"><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#F9DEDC;color:#410E0B;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">error</span>Failed</span><div style="font:400 10.5px Roboto,sans-serif;color:#5B5E57;margin-top:3px">4:02 PM</div></div>
+              </div>
+            </div>
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#5B5E57;padding:12px 4px 6px">YESTERDAY</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid #ECEAE5">
+                <div style="width:36px;height:36px;border-radius:50%;background:#ECEAE5;color:#45483F;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">D</div>
+                <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif">Dad <span style="font:400 11px Roboto,sans-serif;color:#5B5E57">· SMS</span></div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Happy Friday, old man.</div></div>
+                <div style="text-align:right"><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#ECEAE5;color:#45483F;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">history_toggle_off</span>Missed</span><div style="font:400 10.5px Roboto,sans-serif;color:#5B5E57;margin-top:3px">phone was off · skipped</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid #ECEAE5">
+                <div style="width:36px;height:36px;border-radius:50%;background:#C2EAD7;color:#06301F;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">M</div>
+                <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif">Mom <span style="font:400 11px Roboto,sans-serif;color:#5B5E57">· SMS · 3 segments</span></div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Here’s the full recipe you asked…</div></div>
+                <div style="text-align:right"><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#FFDF9E;color:#261A00;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">rule</span>Partially sent</span><div style="font:400 10.5px Roboto,sans-serif;color:#5B5E57;margin-top:3px">2 of 3 segments</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 14px">
+                <div style="width:36px;height:36px;border-radius:50%;background:#DCE5F4;color:#1B2B4B;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">A</div>
+                <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif">Alex <span style="font:400 11px Roboto,sans-serif;color:#5B5E57">· SMS</span></div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Good luck at practice!</div></div>
+                <div style="text-align:right"><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;border:1px solid #DAD7D1;color:#45483F;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">help</span>Unknown</span><div style="font:400 10.5px Roboto,sans-serif;color:#5B5E57;margin-top:3px">no receipt from carrier</div></div>
+              </div>
+            </div>
+            <div style="font:400 11px Roboto,sans-serif;color:#8A8D84;text-align:center;padding:10px 0">Every row opens the send-result detail · swipe row → Open conversation</div>
+          </div>
+          <div style="height:80px;background:#F3F1EE;display:flex;align-items:center;flex:none">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#45483F">event_upcoming</span><div style="font:500 12px Roboto,sans-serif;color:#45483F;margin-top:8px">Upcoming</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><div style="width:64px;height:32px;border-radius:16px;background:#C2EAD7;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:22px;color:#06301F">history</span></div><div style="font:600 12px Roboto,sans-serif;margin-top:4px">History</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#45483F">settings</span><div style="font:500 12px Roboto,sans-serif;color:#45483F;margin-top:8px">Settings</div></div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Send-result detail — failure with retry</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="height:56px;display:flex;align-items:center;gap:8px;padding:0 8px;flex:none">
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#45483F">arrow_back</span></div>
+            <div style="flex:1;font:600 20px 'Albert Sans',sans-serif">Send result</div>
+          </div>
+          <div style="padding:4px 20px 0;display:flex;align-items:center;gap:14px;flex:none">
+            <div style="width:44px;height:44px;border-radius:50%;background:#F2E3D5;color:#4B2E1B;display:flex;align-items:center;justify-content:center;font:600 17px 'Albert Sans',sans-serif">J</div>
+            <div style="flex:1"><div style="font:600 16px 'Albert Sans',sans-serif">Jess · Mobile</div><div style="font:400 12px Roboto,sans-serif;color:#5B5E57">“Don’t forget your headphones tomorrow”</div></div>
+            <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#FFDF9E;color:#261A00;border-radius:10px;padding:4px 9px"><span class="msi" style="font-size:14px">autorenew</span>Retrying</span>
+          </div>
+          <div style="margin:16px 20px 0;background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:16px;flex:none">
+            <div style="display:flex;gap:14px"><div style="display:flex;flex-direction:column;align-items:center"><span class="msi msf" style="font-size:20px;color:#256A53">check_circle</span><div style="width:2px;flex:1;background:#C2EAD7;margin:2px 0"></div></div><div style="padding-bottom:14px"><div style="font:500 13.5px Roboto,sans-serif">Scheduled</div><div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57">Today, 4:00 PM · jitter drew +2 min</div></div></div>
+            <div style="display:flex;gap:14px"><div style="display:flex;flex-direction:column;align-items:center"><span class="msi msf" style="font-size:20px;color:#256A53">check_circle</span><div style="width:2px;flex:1;background:#C2EAD7;margin:2px 0"></div></div><div style="padding-bottom:14px"><div style="font:500 13.5px Roboto,sans-serif">Preparing</div><div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57">4:02 PM · SIM 1 selected</div></div></div>
+            <div style="display:flex;gap:14px"><div style="display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:20px;color:#B3261E">cancel</span><div style="width:2px;flex:1;background:#ECEAE5;margin:2px 0"></div></div><div style="padding-bottom:14px"><div style="font:500 13.5px Roboto,sans-serif;color:#B3261E">Send failed</div><div style="font:400 11.5px/1.5 Roboto,sans-serif;color:#5B5E57">4:02 PM · The network refused the message. This is usually temporary.</div></div></div>
+            <div style="display:flex;gap:14px"><div style="display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:20px;color:#7A5900">schedule</span></div><div><div style="font:500 13.5px Roboto,sans-serif;color:#7A5900">Retry 2 of 3 · 4:20 PM</div><div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57">Then a final try at 5:00 PM before marking Failed</div></div></div>
+          </div>
+          <div style="margin:10px 20px 0;background:#F3F1EE;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex:none">
+            <span style="font:500 12.5px Roboto,sans-serif;color:#45483F">Technical details</span>
+            <span style="display:flex;align-items:center;gap:6px;font:400 11px ui-monospace,monospace;color:#5B5E57">RESULT_ERROR_GENERIC_FAILURE<span class="msi" style="font-size:18px">expand_more</span></span>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 20px 28px;display:flex;flex-direction:column;gap:8px;flex:none">
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;height:48px;border-radius:24px;background:#256A53;color:#fff;display:flex;align-items:center;justify-content:center;gap:7px;font:500 14px Roboto,sans-serif"><span class="msi" style="font-size:19px">refresh</span>Retry now</div>
+              <div style="flex:1;height:48px;border-radius:24px;border:1px solid #256A53;color:#256A53;display:flex;align-items:center;justify-content:center;gap:7px;font:500 14px Roboto,sans-serif"><span class="msi" style="font-size:19px">edit_calendar</span>Reschedule</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;height:48px;border-radius:24px;border:1px solid #DAD7D1;color:#45483F;display:flex;align-items:center;justify-content:center;gap:7px;font:500 13.5px Roboto,sans-serif"><span class="msi" style="font-size:19px">forward_to_inbox</span>Send via Messages</div>
+              <div style="flex:1;height:48px;border-radius:24px;border:1px solid #DAD7D1;color:#45483F;display:flex;align-items:center;justify-content:center;gap:7px;font:500 13.5px Roboto,sans-serif"><span class="msi" style="font-size:19px">open_in_new</span>Open conversation</div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:10px">
+      <div class="fcap">Failure-variant copy (human first, codes expandable)</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:6px 16px;font:400 12.5px/1.5 Roboto,sans-serif;color:#3A3D37">
+        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ECEAE5"><span class="msi" style="font-size:18px;color:#B3261E;flex:none">sim_card_alert</span><span><b>No SIM.</b> “Insert a SIM to send texts. This message will wait.”</span></div>
+        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ECEAE5"><span class="msi" style="font-size:18px;color:#7A5900;flex:none">airplanemode_active</span><span><b>No service / airplane mode.</b> “Will send automatically when service returns (until 9:00 PM).”</span></div>
+        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ECEAE5"><span class="msi" style="font-size:18px;color:#7A5900;flex:none">signal_cellular_nodata</span><span><b>MMS network unavailable.</b> “Photos need mobile data for MMS. Wi-Fi alone isn’t enough on your carrier.”</span></div>
+        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ECEAE5"><span class="msi" style="font-size:18px;color:#7A5900;flex:none">timer_off</span><span><b>Exact-alarm access revoked.</b> “Sends continue with approximate timing. Restore it in Settings.”</span></div>
+        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ECEAE5"><span class="msi" style="font-size:18px;color:#5B5E57;flex:none">help</span><span><b>Delivery status unavailable.</b> “Your carrier didn’t report a receipt. The message was handed to the network normally.”</span></div>
+        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #ECEAE5"><span class="msi" style="font-size:18px;color:#B3261E;flex:none">block</span><span><b>Ambiguous result.</b> “We can’t tell if this went through, so automatic retry is off to avoid sending it twice. Retry manually if it didn’t arrive.”</span></div>
+        <div style="display:flex;gap:10px;padding:9px 0"><span class="msi" style="font-size:18px;color:#7A5900;flex:none">rule</span><span><b>Partially sent.</b> “Parts 1–2 of 3 were sent. Retry sends only the missing part.”</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="settings">
+  <div class="shead"><span class="snum">12</span><span class="stitle">Settings</span></div>
+  <p class="ssub">Six Material 3 sections. Anything that changes send behavior states its consequence inline. The frame scrolls; shown at two scroll positions.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Settings — top</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fp }}" hint-size="428,931">
+        <div style="min-height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="padding:12px 20px 6px;flex:none"><div style="font:600 28px/1.2 'Albert Sans',sans-serif">Settings</div></div>
+          <div style="flex:1;overflow:hidden;padding:0 16px">
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#256A53;padding:10px 4px 6px">NOTIFICATIONS</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;overflow:hidden;font:400 13.5px Roboto,sans-serif">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>Sent to carrier</span><div style="width:44px;height:26px;border-radius:13px;background:#DAD7D1;position:relative"><div style="position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>Delivered</span><div style="width:44px;height:26px;border-radius:13px;background:#256A53;position:relative"><div style="position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>Failed</span><div style="width:44px;height:26px;border-radius:13px;background:#256A53;position:relative"><div style="position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>Retry scheduled</span><div style="width:44px;height:26px;border-radius:13px;background:#256A53;position:relative"><div style="position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px"><div><div>Upcoming assisted messages</div><div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57">Heads-up 5 min before you need to tap send</div></div><div style="width:44px;height:26px;border-radius:13px;background:#256A53;position:relative"><div style="position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+            </div>
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#256A53;padding:14px 4px 6px">SCHEDULING</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;overflow:hidden;font:400 13.5px Roboto,sans-serif">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>Default recurrence</span><span style="font:500 12.5px Roboto,sans-serif;color:#5B5E57">Once ›</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>Default jitter</span><span style="font:500 12.5px Roboto,sans-serif;color:#5B5E57">Off ›</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><div><div>Exact timing</div><div style="font:400 11.5px Roboto,sans-serif;color:#7A5900;display:flex;align-items:center;gap:4px"><span class="msi" style="font-size:13px">timer_off</span>Off — sends may drift ~10 min</div></div><span style="font:500 12.5px Roboto,sans-serif;color:#256A53">Turn on ›</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>Missed-message grace period</span><span style="font:500 12.5px Roboto,sans-serif;color:#5B5E57">4 hours ›</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>If a send is missed</span><span style="font:500 12.5px Roboto,sans-serif;color:#5B5E57">Send ASAP ›</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><div><div>Time zone</div><div style="font:400 11.5px Roboto,sans-serif;color:#5B5E57">Keep local clock time when traveling</div></div><span style="font:500 12.5px Roboto,sans-serif;color:#5B5E57">›</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px"><span>Monthly dates that don’t exist</span><span style="font:500 12.5px Roboto,sans-serif;color:#5B5E57">Last day ›</span></div>
+            </div>
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#256A53;padding:14px 4px 6px">MESSAGING</div>
+            <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px 16px 0 0;border-bottom:none;overflow:hidden;font:400 13.5px Roboto,sans-serif">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #ECEAE5"><span>Default SIM</span><span style="font:500 12.5px Roboto,sans-serif;color:#5B5E57">SIM 1 · Personal ›</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px"><span>Request delivery reports</span><div style="width:44px;height:26px;border-radius:13px;background:#256A53;position:relative"><div style="position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+            </div>
+          </div>
+          <div style="height:80px;background:#F3F1EE;display:flex;align-items:center;flex:none">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#45483F">event_upcoming</span><div style="font:500 12px Roboto,sans-serif;color:#45483F;margin-top:8px">Upcoming</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#45483F">history</span><div style="font:500 12px Roboto,sans-serif;color:#45483F;margin-top:8px">History</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><div style="width:64px;height:32px;border-radius:16px;background:#C2EAD7;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:22px;color:#06301F">settings</span></div><div style="font:600 12px Roboto,sans-serif;margin-top:4px">Settings</div></div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:10px">
+      <div class="fcap">Settings — remaining sections (scrolled)</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;overflow:hidden;font:400 13px Roboto,sans-serif">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.08em;color:#256A53;padding:12px 16px 4px">MESSAGING (CONT.)</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Compress MMS media to carrier-safe size</span><span style="font:500 12px;color:#5B5E57">On</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Open Messages after sending</span><span style="font:500 12px;color:#5B5E57">Off</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Confirm before saving recurring schedules</span><span style="font:500 12px;color:#5B5E57">On</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px"><div>Assisted RCS<div style="font:400 11px;color:#5B5E57">Offer assisted sending when a draft looks like it needs RCS</div></div><span style="font:500 12px;color:#5B5E57">Ask ›</span></div>
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.08em;color:#256A53;padding:12px 16px 4px;border-top:1px solid #ECEAE5">GIFS &amp; DATA</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Content rating</span><span style="font:500 12px;color:#5B5E57">PG ›</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Preview GIFs over mobile data</span><span style="font:500 12px;color:#5B5E57">Wi-Fi only</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Clear recent GIFs</span><span style="font:500 12px;color:#5B5E57">12 items ›</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px"><span>Powered by GIPHY</span><span class="msi" style="font-size:16px;color:#5B5E57">info</span></div>
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.08em;color:#256A53;padding:12px 16px 4px;border-top:1px solid #ECEAE5">PRIVACY &amp; STORAGE</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Keep history</span><span style="font:500 12px;color:#5B5E57">1 year ›</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Clear history</span><span style="font:500 12px;color:#B3261E">›</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Clear cached attachments</span><span style="font:500 12px;color:#5B5E57">48 MB ›</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Back up schedules</span><span style="font:500 12px;color:#5B5E57">Device only ›</span></div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 16px;gap:12px"><div>Send before first unlock after reboot<div style="font:400 11px/1.45;color:#5B5E57">Messages can send while the phone is still locked after a restart. Off is safer: content stays encrypted until you unlock once.</div></div><span style="font:500 12px;color:#5B5E57">Off</span></div>
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.08em;color:#256A53;padding:12px 16px 4px;border-top:1px solid #ECEAE5">ABOUT &amp; DIAGNOSTICS</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Permission status</span><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px;background:#FFDF9E;color:#261A00;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">warning</span>1 needs attention</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Battery optimization</span><span style="display:inline-flex;align-items:center;gap:4px;font:500 11px;background:#C2EAD7;color:#06301F;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">check</span>Unrestricted</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Send a test notification</span><span style="font:500 12px;color:#256A53">Test ›</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #ECEAE5"><span>Send diagnostics</span><span style="font:500 12px;color:#5B5E57">›</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px"><span>Version</span><span style="font:500 12px;color:#5B5E57">1.4.0 (370)</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="notifications">
+  <div class="shead"><span class="snum">13</span><span class="stitle">Notifications</span></div>
+  <p class="ssub">Quiet by default: results are minimized-priority; only “failed”, “action needed”, and “assisted ready” use default priority with actions. Channels map 1:1 to the Settings toggles.</p>
+  <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+    <div style="width:400px;display:flex;flex-direction:column;gap:10px">
+      <div style="background:#F3F1EE;border-radius:24px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:8px;font:400 11.5px Roboto,sans-serif;color:#5B5E57"><div style="width:16px;height:16px;border-radius:5px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:10px;color:#fff">schedule_send</span></div>LaterText · now</div>
+        <div style="font:500 13.5px Roboto,sans-serif;margin-top:6px">Sent to Mom</div>
+        <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">“Thinking of you! Call you this weekend?” · 5:07 PM · SMS</div>
+        <div style="display:flex;gap:16px;margin-top:8px;font:500 12.5px Roboto,sans-serif;color:#256A53"><span>Open conversation</span><span>View details</span></div>
+      </div>
+      <div style="background:#F3F1EE;border-radius:24px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:8px;font:400 11.5px Roboto,sans-serif;color:#5B5E57"><div style="width:16px;height:16px;border-radius:5px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:10px;color:#fff">schedule_send</span></div>LaterText · 5:09 PM</div>
+        <div style="font:500 13.5px Roboto,sans-serif;margin-top:6px">Delivered to Mom</div>
+        <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Confirmed by the carrier at 5:09 PM</div>
+      </div>
+      <div style="background:#F3F1EE;border-radius:24px;padding:14px 16px;border-left:4px solid #B3261E">
+        <div style="display:flex;align-items:center;gap:8px;font:400 11.5px Roboto,sans-serif;color:#5B5E57"><div style="width:16px;height:16px;border-radius:5px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:10px;color:#fff">schedule_send</span></div>LaterText · now</div>
+        <div style="font:500 13.5px Roboto,sans-serif;margin-top:6px;color:#B3261E">Couldn’t send to Sam</div>
+        <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">The network refused the message after 3 tries.</div>
+        <div style="display:flex;gap:16px;margin-top:8px;font:500 12.5px Roboto,sans-serif;color:#256A53"><span>Retry</span><span>View details</span><span>Open conversation</span></div>
+      </div>
+      <div style="background:#F3F1EE;border-radius:24px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:8px;font:400 11.5px Roboto,sans-serif;color:#5B5E57"><div style="width:16px;height:16px;border-radius:5px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:10px;color:#fff">schedule_send</span></div>LaterText · 4:04 PM</div>
+        <div style="font:500 13.5px Roboto,sans-serif;margin-top:6px">Retrying at 4:20 PM</div>
+        <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">“Don’t forget your headphones…” to Jess didn’t go through on the first try.</div>
+        <div style="display:flex;gap:16px;margin-top:8px;font:500 12.5px Roboto,sans-serif;color:#256A53"><span>Retry now</span><span>Pause schedule</span></div>
+      </div>
+    </div>
+    <div style="width:400px;display:flex;flex-direction:column;gap:10px">
+      <div style="background:#F3F1EE;border-radius:24px;padding:14px 16px;border-left:4px solid #256A53">
+        <div style="display:flex;align-items:center;gap:8px;font:400 11.5px Roboto,sans-serif;color:#5B5E57"><div style="width:16px;height:16px;border-radius:5px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:10px;color:#fff">schedule_send</span></div>LaterText · now</div>
+        <div style="font:500 13.5px Roboto,sans-serif;margin-top:6px">Ready to send to Sam — needs your tap</div>
+        <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Your monthly reminder is prepared. Open Messages and tap send — it takes two seconds.</div>
+        <div style="display:flex;gap:16px;margin-top:8px;font:500 12.5px Roboto,sans-serif;color:#256A53"><span>Open Messages</span><span>Skip this time</span></div>
+      </div>
+      <div style="background:#F3F1EE;border-radius:24px;padding:14px 16px;border-left:4px solid #7A5900">
+        <div style="display:flex;align-items:center;gap:8px;font:400 11.5px Roboto,sans-serif;color:#5B5E57"><div style="width:16px;height:16px;border-radius:5px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:10px;color:#fff">schedule_send</span></div>LaterText · now</div>
+        <div style="font:500 13.5px Roboto,sans-serif;margin-top:6px;color:#7A5900">Exact timing was turned off</div>
+        <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">Android revoked “Alarms &amp; reminders”. Schedules now use approximate timing.</div>
+        <div style="display:flex;gap:16px;margin-top:8px;font:500 12.5px Roboto,sans-serif;color:#256A53"><span>Restore access</span><span>Learn more</span></div>
+      </div>
+      <div style="background:#F3F1EE;border-radius:24px;padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:8px;font:400 11.5px Roboto,sans-serif;color:#5B5E57"><div style="width:16px;height:16px;border-radius:5px;background:#256A53;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:10px;color:#fff">schedule_send</span></div>LaterText · 8:00 AM</div>
+        <div style="font:500 13.5px Roboto,sans-serif;margin-top:6px">5 schedules are paused</div>
+        <div style="font:400 12.5px Roboto,sans-serif;color:#5B5E57">You paused everything on Aug 24. Nothing will send until you resume.</div>
+        <div style="display:flex;gap:16px;margin-top:8px;font:500 12.5px Roboto,sans-serif;color:#256A53"><span>Resume all</span><span>Review schedules</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="dark" style="background:#22241F">
+  <div class="shead"><span class="snum" style="background:#93D8BA;color:#06301F">14</span><span class="stitle" style="color:#E3E4DE">Dark theme</span></div>
+  <p class="ssub" style="color:#A9ADA3">True dark surfaces (not tinted black), desaturated containers, and the same status semantics — icons and labels carry the meaning, colors soften.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap" style="color:#E3E4DE">Upcoming</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fpd }}" hint-size="428,931">
+        <div style="min-height:100%;background:#131513;display:flex;flex-direction:column;box-sizing:border-box;position:relative">
+          <div style="padding:12px 20px 0;display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font:600 28px/1.2 'Albert Sans',sans-serif;color:#E3E4DE">Upcoming</div><div style="font:400 12.5px Roboto,sans-serif;color:#A9ADA3;margin-top:2px">5 schedules · all running</div></div>
+            <div style="height:36px;border-radius:18px;background:#232622;display:flex;align-items:center;gap:6px;padding:0 14px;font:500 13px Roboto,sans-serif;color:#C4C8C0"><span class="msi" style="font-size:18px">pause_circle</span>Pause all</div>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:8px 16px 0;display:flex;flex-direction:column;gap:8px">
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#93D8BA;padding:8px 4px 0">TODAY</div>
+            <div style="background:#1E201D;border:1px solid #33362F;border-radius:16px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#0C3F2C;color:#ABF0D3;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">M</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif;color:#E3E4DE">Mom · Mobile</div><div style="font:400 12.5px Roboto,sans-serif;color:#A9ADA3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Thinking of you! Call you this weekend?</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif;color:#E3E4DE">5:00 PM</div><div style="font:400 11px Roboto,sans-serif;color:#A9ADA3">±15 min</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="font:500 11px Roboto,sans-serif;border:1px solid #3F433D;border-radius:10px;padding:3px 8px;color:#C4C8C0">SMS</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;color:#C4C8C0"><span class="msi" style="font-size:14px">repeat</span>Every Friday</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#0C3F2C;color:#ABF0D3;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">schedule</span>Scheduled</span>
+                <span style="flex:1"></span><span class="msi" style="font-size:20px;color:#A9ADA3">more_vert</span>
+              </div>
+            </div>
+            <div style="background:#1E201D;border:1px solid #33362F;border-radius:16px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#26324A;color:#C4D8F4;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">A</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif;color:#E3E4DE">Alex · Mobile</div><div style="font:400 12.5px Roboto,sans-serif;color:#A9ADA3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px"><span class="msi" style="font-size:14px">image</span>Look what I found at the flea market</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif;color:#E3E4DE">6:30 PM</div><div style="font:400 11px Roboto,sans-serif;color:#A9ADA3">exact</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="font:500 11px Roboto,sans-serif;border:1px solid #3F433D;border-radius:10px;padding:3px 8px;color:#C4C8C0">MMS</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;color:#C4C8C0"><span class="msi" style="font-size:14px">looks_one</span>Once</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#0C3F2C;color:#ABF0D3;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">schedule</span>Scheduled</span>
+                <span style="flex:1"></span><span class="msi" style="font-size:20px;color:#A9ADA3">more_vert</span>
+              </div>
+            </div>
+            <div style="background:#1E201D;border:1px solid #33362F;border-radius:16px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#3D2F1E;color:#F0D8B8;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">J</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif;color:#E3E4DE">Jess · Mobile</div><div style="font:400 12.5px Roboto,sans-serif;color:#A9ADA3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Don’t forget your headphones tomorrow</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif;color:#E3E4DE">4:02 PM</div><div style="font:400 11px Roboto,sans-serif;color:#A9ADA3">attempted</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="font:500 11px Roboto,sans-serif;border:1px solid #3F433D;border-radius:10px;padding:3px 8px;color:#C4C8C0">SMS</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#5C4300;color:#FFDF9E;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">autorenew</span>Retrying · 4:20 PM</span>
+                <span style="flex:1"></span><span class="msi" style="font-size:20px;color:#A9ADA3">more_vert</span>
+              </div>
+            </div>
+            <div style="font:600 11px Roboto,sans-serif;letter-spacing:.08em;color:#A9ADA3;padding:6px 4px 0">TOMORROW</div>
+            <div style="background:#1E201D;border:1px solid #33362F;border-radius:16px;padding:12px 14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#332648;color:#DCC8F4;display:flex;align-items:center;justify-content:center;font:600 16px 'Albert Sans',sans-serif">S</div>
+                <div style="flex:1;min-width:0"><div style="font:500 14.5px Roboto,sans-serif;color:#E3E4DE">Sam · Work</div><div style="font:400 12.5px Roboto,sans-serif;color:#A9ADA3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Reminder: invoices are due Friday.</div></div>
+                <div style="text-align:right"><div style="font:600 16px 'Albert Sans',sans-serif;color:#E3E4DE">9:00 AM</div><div style="font:400 11px Roboto,sans-serif;color:#A9ADA3">exact</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#232622;border-radius:10px;padding:3px 8px;color:#C4C8C0"><span class="msi" style="font-size:13px">touch_app</span>Assisted</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#0C3F2C;color:#ABF0D3;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:14px">schedule</span>Scheduled</span>
+                <span style="flex:1"></span><span class="msi" style="font-size:20px;color:#A9ADA3">more_vert</span>
+              </div>
+            </div>
+          </div>
+          <div style="position:absolute;right:16px;bottom:96px;height:56px;border-radius:16px;background:#93D8BA;color:#06301F;display:flex;align-items:center;gap:10px;padding:0 20px;font:500 15px Roboto,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.4)"><span class="msi" style="font-size:22px">edit</span>New message</div>
+          <div style="height:80px;background:#1E201D;display:flex;align-items:center;flex:none">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><div style="width:64px;height:32px;border-radius:16px;background:#0C3F2C;display:flex;align-items:center;justify-content:center"><span class="msi msf" style="font-size:22px;color:#ABF0D3">event_upcoming</span></div><div style="font:600 12px Roboto,sans-serif;color:#E3E4DE;margin-top:4px">Upcoming</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#C4C8C0">history</span><div style="font:500 12px Roboto,sans-serif;color:#C4C8C0;margin-top:8px">History</div></div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center"><span class="msi" style="font-size:22px;color:#C4C8C0">settings</span><div style="font:500 12px Roboto,sans-serif;color:#C4C8C0;margin-top:8px">Settings</div></div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div>
+      <div class="fcap" style="color:#E3E4DE">Composer</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fpd }}" hint-size="428,931">
+        <div style="min-height:100%;background:#131513;display:flex;flex-direction:column;box-sizing:border-box">
+          <div style="height:56px;display:flex;align-items:center;gap:8px;padding:0 8px">
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#C4C8C0">close</span></div>
+            <div style="flex:1;font:600 20px 'Albert Sans',sans-serif;color:#E3E4DE">New message</div>
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:24px;color:#C4C8C0">more_vert</span></div>
+          </div>
+          <div style="padding:4px 20px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font:500 13px Roboto,sans-serif;color:#A9ADA3">To</span>
+            <span style="display:inline-flex;align-items:center;gap:8px;background:#0C3F2C;border-radius:18px;padding:5px 12px 5px 5px">
+              <span style="width:26px;height:26px;border-radius:50%;background:#ABF0D3;color:#06301F;display:flex;align-items:center;justify-content:center;font:600 12px 'Albert Sans',sans-serif">M</span>
+              <span style="font:500 13.5px Roboto,sans-serif;color:#ABF0D3">Mom · Mobile</span>
+              <span class="msi" style="font-size:16px;color:#ABF0D3">close</span>
+            </span>
+            <span style="flex:1"></span>
+            <span style="display:inline-flex;align-items:center;gap:6px;font:500 13px Roboto,sans-serif;color:#93D8BA"><span class="msi" style="font-size:18px">open_in_new</span>Open conversation</span>
+          </div>
+          <div style="margin:16px 20px 0;background:#1E201D;border:1px solid #33362F;border-radius:16px;padding:16px;flex:1;display:flex;flex-direction:column">
+            <div style="font:400 16px/1.5 Roboto,sans-serif;color:#E3E4DE">Thinking of you! Call you this weekend?<span style="display:inline-block;width:2px;height:18px;background:#93D8BA;vertical-align:-3px;margin-left:1px"></span></div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:4px;border-top:1px solid #33362F;padding-top:10px">
+              <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#C4C8C0">add_photo_alternate</span></div>
+              <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#C4C8C0">gif_box</span></div>
+              <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#C4C8C0">content_paste</span></div>
+              <span style="flex:1"></span>
+              <span style="font:400 12px Roboto,sans-serif;color:#A9ADA3">38 / 160 · 1 segment</span>
+            </div>
+          </div>
+          <div style="margin:12px 20px 0;display:flex;align-items:center;gap:8px">
+            <span class="msi" style="font-size:18px;color:#93D8BA">sms</span>
+            <span style="font:400 12.5px Roboto,sans-serif;color:#C4C8C0;flex:1">Sends automatically as <b>SMS</b></span>
+            <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid #3F433D;border-radius:16px;padding:5px 12px;font:500 12px Roboto,sans-serif;color:#C4C8C0"><span class="msi" style="font-size:16px">sim_card</span>SIM 1<span class="msi" style="font-size:16px">arrow_drop_down</span></span>
+          </div>
+          <div style="display:flex;gap:10px;padding:16px 20px 28px">
+            <div style="flex:1;height:52px;border-radius:26px;border:1px solid #93D8BA;color:#93D8BA;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif"><span class="msi" style="font-size:20px">send</span>Send now</div>
+            <div style="flex:1.4;height:52px;border-radius:26px;background:#93D8BA;color:#06301F;display:flex;align-items:center;justify-content:center;gap:8px;font:500 15px Roboto,sans-serif"><span class="msi" style="font-size:20px">schedule</span>Schedule</div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+    <div>
+      <div class="fcap" style="color:#E3E4DE">Schedule editor &amp; history rows</div>
+      <div style="width:412px;display:flex;flex-direction:column;gap:14px">
+        <div style="background:#1A1C1A;border-radius:28px 28px 16px 16px;padding:8px 20px 20px;border:1px solid #33362F">
+          <div style="width:32px;height:4px;border-radius:2px;background:#3F433D;margin:4px auto 12px"></div>
+          <div style="font:600 18px 'Albert Sans',sans-serif;color:#E3E4DE;margin-bottom:12px">Schedule</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="font:500 12.5px Roboto,sans-serif;border:1px solid #3F433D;border-radius:16px;padding:7px 13px;color:#C4C8C0">Once</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;font:500 12.5px Roboto,sans-serif;background:#0C3F2C;color:#ABF0D3;border-radius:16px;padding:7px 13px"><span class="msi" style="font-size:15px">check</span>Weekly</span>
+            <span style="font:500 12.5px Roboto,sans-serif;border:1px solid #3F433D;border-radius:16px;padding:7px 13px;color:#C4C8C0">Monthly</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;background:#232622;border-radius:16px;padding:12px 16px">
+            <div><div style="font:400 11.5px Roboto,sans-serif;color:#A9ADA3">Send at</div><div style="font:600 24px 'Albert Sans',sans-serif;color:#E3E4DE">5:00 PM</div></div>
+            <span class="msi" style="font-size:22px;color:#93D8BA">edit</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 2px 2px">
+            <div style="flex:1"><div style="font:500 13.5px Roboto,sans-serif;color:#E3E4DE">Vary the exact minute</div><div style="font:400 11.5px Roboto,sans-serif;color:#A9ADA3">Up to ±15 min · range 4:45–5:15 PM</div></div>
+            <div style="width:48px;height:28px;border-radius:14px;background:#93D8BA;position:relative"><div style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#06301F"></div></div>
+          </div>
+          <div style="height:44px;border-radius:22px;background:#93D8BA;color:#06301F;display:flex;align-items:center;justify-content:center;font:500 14px Roboto,sans-serif;margin-top:14px">Save schedule</div>
+        </div>
+        <div style="background:#1E201D;border:1px solid #33362F;border-radius:16px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid #33362F">
+            <div style="width:36px;height:36px;border-radius:50%;background:#0C3F2C;color:#ABF0D3;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">M</div>
+            <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif;color:#E3E4DE">Mom <span style="font:400 11px Roboto,sans-serif;color:#A9ADA3">· SMS</span></div><div style="font:400 12px Roboto,sans-serif;color:#A9ADA3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Thinking of you! Call you…</div></div>
+            <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#0C3F2C;color:#ABF0D3;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">done_all</span>Delivered</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 14px">
+            <div style="width:36px;height:36px;border-radius:50%;background:#332648;color:#DCC8F4;display:flex;align-items:center;justify-content:center;font:600 14px 'Albert Sans',sans-serif">S</div>
+            <div style="flex:1;min-width:0"><div style="font:500 13.5px Roboto,sans-serif;color:#E3E4DE">Sam <span style="font:400 11px Roboto,sans-serif;color:#A9ADA3">· SMS · 3 attempts</span></div><div style="font:400 12px Roboto,sans-serif;color:#A9ADA3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Reminder: invoices are due…</div></div>
+            <span style="display:inline-flex;align-items:center;gap:4px;font:500 11px Roboto,sans-serif;background:#601410;color:#F2B8B5;border-radius:10px;padding:3px 8px"><span class="msi" style="font-size:13px">error</span>Failed</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="spec" style="background:#FAF9F7">
+  <div class="shead"><span class="snum">15</span><span class="stitle">Tokens, components, motion &amp; handoff</span></div>
+  <div style="display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;margin-top:20px">
+    <div style="width:330px">
+      <div style="font:600 12px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">DESIGN TOKENS (LIGHT / DARK)</div>
+      <div style="font:400 12px/1.5 ui-monospace,Menlo,monospace;color:#3A3D37;background:#fff;border:1px solid #DAD7D1;border-radius:12px;padding:14px 16px">
+        primary &nbsp;#256A53 / #93D8BA<br>
+        on-primary &nbsp;#FFFFFF / #06301F<br>
+        primary-container &nbsp;#C2EAD7 / #0C3F2C<br>
+        surface &nbsp;#FAF9F7 / #131513<br>
+        surface-container &nbsp;#F3F1EE / #1E201D<br>
+        on-surface &nbsp;#1B1C1A / #E3E4DE<br>
+        on-surface-variant &nbsp;#5B5E57 / #A9ADA3<br>
+        outline-variant &nbsp;#DAD7D1 / #33362F<br>
+        warn-container &nbsp;#FFDF9E / #5C4300<br>
+        error &nbsp;#B3261E / #F2B8B5<br>
+        error-container &nbsp;#F9DEDC / #601410<br><br>
+        type &nbsp;Albert Sans 600 (display, times)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Roboto 400/500 (UI, body)<br>
+        scale &nbsp;28/26/20 display · 16 body · 14.5 list<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12.5 support · 11 chips (never &lt;11)<br>
+        shape &nbsp;28 sheets · 16 cards/FAB · pill chips<br>
+        space &nbsp;4dp grid · 20 side margins · 8–12 gaps<br>
+        elevation &nbsp;borders in light · lift in dark;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shadow only on FAB &amp; dialogs
+      </div>
+    </div>
+    <div style="width:330px">
+      <div style="font:600 12px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">COMPONENT INVENTORY (M3 BASE)</div>
+      <div style="font:400 12.5px/1.7 Roboto,sans-serif;color:#3A3D37;background:#fff;border:1px solid #DAD7D1;border-radius:12px;padding:14px 16px">
+        <b>Stock M3:</b> extended FAB · nav bar · filled/outlined/text buttons · filter &amp; input chips · switches · radio · sliders · bottom sheets · dialogs · snackbars · date/time pickers · progress<br>
+        <b>Custom (this spec):</b> schedule card (avatar + time + chip row) · status chip set (8 states, icon+label) · transport badge (SMS/MMS/Assisted) · jitter row + range slider · occurrence-preview list · send-event timeline · recipient chip · readiness list item<br>
+        <b>Status chips:</b> schedule→scheduled · pause→paused · touch_app→action needed · autorenew→retrying · check→sent to carrier · done_all→delivered · error→failed · help→unknown · history_toggle_off→missed · rule→partial · block→canceled
+      </div>
+    </div>
+    <div style="width:330px">
+      <div style="font:600 12px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">MOTION &amp; INTERACTION</div>
+      <div style="font:400 12.5px/1.7 Roboto,sans-serif;color:#3A3D37;background:#fff;border:1px solid #DAD7D1;border-radius:12px;padding:14px 16px">
+        · Sheets: 300ms emphasized-decelerate up; scrim 32%<br>
+        · Card → detail: container-transform, 350ms<br>
+        · Tab switch: fade-through 200ms, no slide<br>
+        · Status change: chip cross-fades; a snackbar (“Sent to Mom · View”) confirms sends<br>
+        · Pause all: cards desaturate together, 250ms stagger 20ms<br>
+        · Reduced motion: all transforms become fades<br>
+        · Touch targets ≥48dp; list rows ≥56dp<br>
+        · Long-press card = same menu as overflow<br>
+        · Send now from a recurring schedule never shifts the next occurrence
+      </div>
+    </div>
+    <div style="width:330px">
+      <div style="font:600 12px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">KEY UX COPY</div>
+      <div style="font:400 12.5px/1.7 Roboto,sans-serif;color:#3A3D37;background:#fff;border:1px solid #DAD7D1;border-radius:12px;padding:14px 16px">
+        · Jitter: “Vary each send by a random amount before or after the scheduled time.”<br>
+        · Confirm: “Send ‘Thinking of you!’ to Mom every Friday around 5:00 PM, varying by up to 15 minutes.”<br>
+        · Sent ≠ delivered: “Handed to your carrier. Delivery confirmation depends on their network.”<br>
+        · Assisted: “RCS chats can’t be sent silently by another app — we’ll prep it, you tap send.”<br>
+        · Pause all: “Nothing sends until you resume. Schedules keep their timing.”<br>
+        · Never used: “guaranteed”, “100%”, blame-y error tones
+      </div>
+    </div>
+    <div style="width:330px">
+      <div style="font:600 12px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">HANDOFF: APP-OWNED VS SYSTEM-OWNED</div>
+      <div style="font:400 12.5px/1.7 Roboto,sans-serif;color:#3A3D37;background:#fff;border:1px solid #DAD7D1;border-radius:12px;padding:14px 16px">
+        <b>App-owned:</b> tabs, composer, schedule editor, GIF browser, detail, history, send-result, settings, readiness, import screen<br>
+        <b>System-owned (never restyled):</b> Sharesheet + Direct Share targets · Contact Picker · permission dialogs · text-selection toolbar · notifications · default messaging app (assisted sends, “Open conversation”)<br>
+        <b>Boundary rule:</b> every hop to a system surface returns to an app-owned screen that restates the outcome.
+      </div>
+    </div>
+    <div style="width:330px">
+      <div style="font:600 12px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:10px">ACCESSIBILITY CHECKLIST</div>
+      <div style="font:400 12.5px/1.7 Roboto,sans-serif;color:#3A3D37;background:#fff;border:1px solid #DAD7D1;border-radius:12px;padding:14px 16px">
+        · AA contrast on all text incl. chips (verified pairs above)<br>
+        · Status = color + icon + label, everywhere<br>
+        · TalkBack: card reads “Mom, mobile. Thinking of you. Sends today around 5 PM, varies up to 15 minutes. Scheduled. Actions available.”<br>
+        · Font scale 200%: cards grow, chip rows wrap to two lines<br>
+        · Destructive + recurring actions always confirm<br>
+        · Permission asks: one per screen, plain language, refusable
+      </div>
+    </div>
+  </div>
+  <p class="fnote" style="max-width:900px;margin-top:24px"><b>Next steps:</b> pick <a href="#1a">1a</a> or <a href="#1b">1b</a> (screens re-skin cheaply) · I can build the clickable prototype flows (recurring-with-jitter creation, share-in, Direct Share, failed send, assisted RCS) as a separate interactive DC · or produce Figma-ready redlines for any screen here.</p>
+</section>
+
+<section class="sec" id="ime">
+  <div class="shead"><span class="snum">16</span><span class="stitle">IME behavior — keyboard up &amp; down</span></div>
+  <p class="ssub">The composer (<a href="#composer">05</a>) reflows rather than pans: the window resizes with the IME, a compact edit bar docks directly above the keyboard, and the cursor line is always kept in view. Show and hide are synchronized to the keyboard’s own animation — content never jump-cuts.</p>
+  <div class="frames">
+    <div>
+      <div class="fcap"><span class="apptag">APP</span> Composer — keyboard up (docked edit bar)</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dc-props="{{ fpk }}" hint-size="428,931">
+        <div style="height:100%;background:#FAF9F7;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden">
+          <div style="height:44px;display:flex;align-items:center;gap:8px;padding:0 8px;flex:none">
+            <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:22px;color:#45483F">close</span></div>
+            <div style="flex:1;font:600 17px 'Albert Sans',sans-serif">New message</div>
+          </div>
+          <div style="padding:0 20px;display:flex;align-items:center;gap:10px;flex:none">
+            <span style="font:500 13px Roboto,sans-serif;color:#5B5E57">To</span>
+            <span style="display:inline-flex;align-items:center;gap:8px;background:#C2EAD7;border-radius:16px;padding:4px 10px 4px 4px">
+              <span style="width:22px;height:22px;border-radius:50%;background:#06301F;color:#C2EAD7;display:flex;align-items:center;justify-content:center;font:600 11px 'Albert Sans',sans-serif">M</span>
+              <span style="font:500 12.5px Roboto,sans-serif;color:#06301F">Mom · Mobile</span>
+            </span>
+          </div>
+          <div style="margin:10px 20px 0;background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative">
+            <div style="font:400 16px/1.5 Roboto,sans-serif;color:#1B1C1A">Thinking of you! Call you this weekend? I found that recipe you aske<span style="display:inline-block;width:2px;height:18px;background:#256A53;vertical-align:-3px;margin-left:1px"></span></div>
+            <div style="position:absolute;right:10px;bottom:8px;font:500 9.5px ui-monospace,monospace;color:#8A8D84;background:#F3F1EE;border-radius:6px;padding:2px 6px">cursor line kept in view</div>
+          </div>
+          <div style="flex:none;display:flex;align-items:center;gap:2px;background:#F3F1EE;border-top:1px solid #DAD7D1;padding:6px 10px;margin-top:10px">
+            <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:21px;color:#45483F">add_photo_alternate</span></div>
+            <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span class="msi" style="font-size:21px;color:#45483F">gif_box</span></div>
+            <div style="display:flex;flex-direction:column;flex:1;min-width:0;padding:0 6px">
+              <span style="font:400 11px Roboto,sans-serif;color:#5B5E57">68 / 160 · 1 segment</span>
+              <span style="display:flex;align-items:center;gap:4px;font:500 10.5px Roboto,sans-serif;color:#256A53"><span class="msi" style="font-size:13px">sms</span>SMS · SIM 1</span>
+            </div>
+            <div style="height:44px;border-radius:22px;background:#256A53;color:#fff;display:flex;align-items:center;gap:7px;padding:0 18px;font:500 14px Roboto,sans-serif"><span class="msi" style="font-size:19px">schedule</span>Schedule</div>
+          </div>
+        </div>
+      </x-import>
+      <p class="fnote">While typing, the full action row (Send now + Schedule + transport summary line) condenses into this one 56dp bar riding the IME via <span style="font-family:ui-monospace,monospace">imePadding()</span>. Send now moves to the overflow to keep one unambiguous primary action within thumb reach. All targets stay ≥44dp.</p>
+    </div>
+    <div style="width:412px;display:flex;flex-direction:column;gap:14px">
+      <div class="fcap">Layout rules on show / hide</div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;font:400 12.5px/1.65 Roboto,sans-serif;color:#3A3D37">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:6px">KEYBOARD SHOWS ↑</div>
+        · Window <b>resizes</b> (never pans): edge-to-edge + IME insets, no <span style="font-family:ui-monospace,monospace">adjustPan</span><br>
+        · App bar collapses 56→44dp; recipient chip row pins at top<br>
+        · Message card shrinks; inner scroll keeps the <b>cursor line</b> above the IME at all times<br>
+        · Edit bar (attach · counter · transport · Schedule) docks flush above the keyboard and translates 1:1 with it<br>
+        · Bottom nav + FAB sit under the IME — excluded from the resized layout, no double padding
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;font:400 12.5px/1.65 Roboto,sans-serif;color:#3A3D37">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:6px">KEYBOARD HIDES ↓</div>
+        · Same synchronized animation in reverse; scroll position and cursor preserved<br>
+        · Edit bar expands back into the full action row (Send now + Schedule) once insets reach 0<br>
+        · Drag-to-dismiss: scrolling the message body down drags the IME away with the gesture (<span style="font-family:ui-monospace,monospace">imeNestedScroll</span>)<br>
+        · In sheets (schedule editor, GIF search): the sheet rises with the IME; on hide it settles back to its anchor — content inside never reflows mid-animation
+      </div>
+      <div style="background:#fff;border:1px solid #DAD7D1;border-radius:16px;padding:14px 16px;font:400 12.5px/1.65 Roboto,sans-serif;color:#3A3D37">
+        <div style="font:600 10.5px Roboto,sans-serif;letter-spacing:.06em;color:#5B5E57;margin-bottom:6px">IMPLEMENTATION (COMPOSE, API 37)</div>
+        · <span style="font-family:ui-monospace,monospace">enableEdgeToEdge()</span> + <span style="font-family:ui-monospace,monospace">windowSoftInputMode="adjustResize"</span><br>
+        · <span style="font-family:ui-monospace,monospace">Scaffold(contentWindowInsets = WindowInsets.safeDrawing)</span>; edit bar uses <span style="font-family:ui-monospace,monospace">Modifier.imePadding()</span><br>
+        · Frame-synced motion for free via <span style="font-family:ui-monospace,monospace">WindowInsetsAnimationCompat</span> / Compose ime insets — don’t hand-animate<br>
+        · Cursor visibility: <span style="font-family:ui-monospace,monospace">BringIntoViewRequester</span> on the focused line inside the field’s scroll state<br>
+        · State swap (full row ↔ docked bar) keyed on <span style="font-family:ui-monospace,monospace">WindowInsets.isImeVisible</span>, crossfade 150ms<br>
+        · Small heights (multi-window, &lt;480dp visible): recipient row joins the app bar line so the field keeps ≥3 visible lines
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      fp: { height: 915 },
+      fpk: { height: 915, keyboard: true },
+      fpd: { height: 915, dark: true },
+    };
+  }
+}
+</script>
+</body>
+</html>
