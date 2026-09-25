@@ -32,6 +32,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.lifecycle.lifecycleScope
 import com.patjackson.latertext.core.designsystem.LaterTextTheme
 import com.patjackson.latertext.core.model.MissedPolicy
@@ -58,6 +61,7 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject lateinit var shareShortcuts: RecipientShareShortcutPublisher
     @Inject lateinit var smsProviderObserver: SmsProviderChangeObserver
+    @Inject lateinit var diagnostics: LaterTextDiagnostics
     private val viewModel: AppViewModel by viewModels()
     internal val contactSelectionHelper by lazy { ContactSelectionHelper(contentResolver, resources) }
     private val incomingIntentParser by lazy { IncomingIntentParser(contentResolver) }
@@ -68,7 +72,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handleIncomingIntent(intent)
         setContent {
             LaterTextTheme {
-                LaterTextApp(viewModel)
+                diagnostics.Host { LaterTextApp(viewModel) }
             }
         }
     }
@@ -113,6 +117,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun MainActivity.LaterTextApp(viewModel: AppViewModel) {
     val ui by viewModel.uiState.collectAsState()
+    LaunchedEffect(ui.screen) { diagnostics.screenViewed(ui.screen) }
     val snackbarHost = remember { SnackbarHostState() }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -140,7 +145,7 @@ private fun MainActivity.LaterTextApp(viewModel: AppViewModel) {
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
         snackbarHost = { SnackbarHost(snackbarHost) },
         bottomBar = {
             if (ui.screen in MAIN_SCREENS) {
@@ -160,6 +165,7 @@ private fun MainActivity.LaterTextApp(viewModel: AppViewModel) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .testTag(ui.screen.productComponentId)
                 .padding(contentPadding),
         ) {
             when (ui.screen) {

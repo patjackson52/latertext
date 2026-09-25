@@ -41,6 +41,42 @@ With an API 37 emulator or device connected, run Room and persistence integratio
 ./gradlew :data:impl:connectedDebugAndroidTest
 ```
 
+## SloopWorks integration
+
+Shipyard project **P-10** tracks this repository as LaterText (workspace name
+Chatty). `.shipyard.yaml` pins the verification command. Product Atlas vocabulary,
+generated Kotlin IDs, implementation associations and synthetic Android capture
+profiles are under [`.product`](.product/product-definition.json); see the
+[capture workflow](tools/product/README.md).
+
+Debug and development builds include the shared DebugDrawer and SWIP event
+inspector. Open the floating drawer, choose **Diagnostics**, and enable recording
+for the current session. Screen names and bounded scheduling outcomes stay in
+memory. Stopping recording clears them; recipient details, message text, media
+and identifiers are never recorded. Release builds use a no-op implementation
+and contain neither SDK. Remote analytics is not configured.
+
+Private Maven dependencies require `gpr.user`/`gpr.token` in the user's Gradle
+properties or `GITHUB_ACTOR`/`SLOOPWORKS_PACKAGES_TOKEN` in the build environment.
+No credential belongs in the repository. SWIP schemas and generated event sources
+are pinned in [`.swip/upstream.json`](.swip/upstream.json). Verify them with
+`python3 scripts/check_swip_generated.py`; changes originate in the SWIP registry.
+
+Build an APK with Shipyard Deploy provenance using:
+
+```sh
+python3 scripts/build_development.py --deploy-repo ../shipyard-deploy
+shipyard-deploy inspect app/build/outputs/apk/development/app-development.apk --json
+shipyard-deploy publish app/build/outputs/apk/development/app-development.apk --dry-run --json
+```
+
+The builder compiles an exact pinned upstream plugin revision in a cache and
+builds `com.patjackson.latertext.dev`, separate from the ordinary debug package.
+It does not publish. `.shipyard-deploy.yaml` selects notification-only channels.
+The developer APK uses this machine's existing Android debug signer, whose
+fingerprint must be registered before publishing. It is for personal development;
+another machine needs the same authorized signer or a separately approved slot.
+
 ## Design specification
 
 The high-fidelity Material 3 design specification is stored at [`designs/LaterText Design Spec.dc.html`](designs/LaterText%20Design%20Spec.dc.html). It was exported from the shared [Claude Design project](https://claude.ai/design/p/3e614187-e015-4aa2-9701-7b215c4a5865?file=LaterText+Design+Spec.dc.html&via=share).

@@ -1,0 +1,10 @@
+{
+  "schema_version": "product-tooling-manifest/v2",
+  "definition_path": ".product/product-definition.json",
+  "generated_python_path": "tools/product/product_ids.py",
+  "generated_javascript_path": "tools/product/product-ids.mjs",
+  "generated_kotlin_path": "app/src/main/java/com/patjackson/latertext/product/ProductIds.kt",
+  "kotlin_package": "com.patjackson.latertext.product",
+  "association_manifest_path": ".product/product-association-sources.json",
+  "capture_adapter_manifest_path": ".product/product-capture-adapter.json"
+}

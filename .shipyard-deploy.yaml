@@ -1,0 +1,7 @@
+version: 1
+project: latertext
+packages:
+  com.patjackson.latertext.dev: { variant: development, signer: latertext-development }
+channels:
+  main: { branch: main, mode: NOTIFY, ttl: 48h }
+  default: { branch: "*", channel: "dev-{branch_slug}", mode: NOTIFY, ttl: 48h }

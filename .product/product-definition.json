@@ -1,0 +1,762 @@
+{
+  "schema_version": "product-definition/v1",
+  "product": {
+    "id": "product:latertext",
+    "name": "LaterText",
+    "description": "Personal Android SMS/MMS scheduling with recurring rules, durable execution, explicit assisted handoff, and separate carrier-send and delivery outcomes. Also known as Chatty."
+  },
+  "entities": [
+    {
+      "id": "surface:latertext.upcoming",
+      "kind": "surface",
+      "name": "Upcoming messages",
+      "description": "Browse upcoming messages, open a schedule, pause all sending, or compose a message.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "surface_kind": "screen"
+    },
+    {
+      "id": "component:latertext.upcoming_content",
+      "kind": "component",
+      "name": "Upcoming messages content",
+      "description": "Browse upcoming messages, open a schedule, pause all sending, or compose a message.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "component_kind": "region"
+    },
+    {
+      "id": "surface:latertext.history",
+      "kind": "surface",
+      "name": "Message history",
+      "description": "Review distinct send and delivery outcomes and filter sent, failed, and action-required entries.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "surface_kind": "screen"
+    },
+    {
+      "id": "component:latertext.history_content",
+      "kind": "component",
+      "name": "Message history content",
+      "description": "Review distinct send and delivery outcomes and filter sent, failed, and action-required entries.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "component_kind": "region"
+    },
+    {
+      "id": "surface:latertext.settings",
+      "kind": "surface",
+      "name": "Messaging setup",
+      "description": "Manage SMS, history, notification and exact-alarm readiness plus notification preferences and global pause.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "surface_kind": "screen"
+    },
+    {
+      "id": "component:latertext.settings_content",
+      "kind": "component",
+      "name": "Messaging setup content",
+      "description": "Manage SMS, history, notification and exact-alarm readiness plus notification preferences and global pause.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "component_kind": "region"
+    },
+    {
+      "id": "surface:latertext.composer",
+      "kind": "surface",
+      "name": "Compose a message",
+      "description": "Choose one recipient, type text, and optionally import a single image or animated GIF.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "surface_kind": "screen"
+    },
+    {
+      "id": "component:latertext.composer_content",
+      "kind": "component",
+      "name": "Compose a message content",
+      "description": "Choose one recipient, type text, and optionally import a single image or animated GIF.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "component_kind": "region"
+    },
+    {
+      "id": "surface:latertext.schedule_editor",
+      "kind": "surface",
+      "name": "Schedule timing",
+      "description": "Choose a date, local time, recurrence, random jitter, end condition and missed-time policy.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "surface_kind": "screen"
+    },
+    {
+      "id": "component:latertext.schedule_editor_content",
+      "kind": "component",
+      "name": "Schedule timing content",
+      "description": "Choose a date, local time, recurrence, random jitter, end condition and missed-time policy.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "component_kind": "region"
+    },
+    {
+      "id": "surface:latertext.detail",
+      "kind": "surface",
+      "name": "Schedule details",
+      "description": "Inspect a schedule and its status, pause or resume it, delete it, or explicitly open an assisted handoff.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "surface_kind": "screen"
+    },
+    {
+      "id": "component:latertext.detail_content",
+      "kind": "component",
+      "name": "Schedule details content",
+      "description": "Inspect a schedule and its status, pause or resume it, delete it, or explicitly open an assisted handoff.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "component_kind": "region"
+    },
+    {
+      "id": "action:latertext.compose",
+      "kind": "action",
+      "name": "Compose message",
+      "description": "Open or resume the private message draft.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "actor": "user"
+    },
+    {
+      "id": "action:latertext.save_schedule",
+      "kind": "action",
+      "name": "Save schedule",
+      "description": "Persist a validated message and rule, materialize its occurrence and reconcile alarms.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "actor": "user"
+    },
+    {
+      "id": "action:latertext.send_now",
+      "kind": "action",
+      "name": "Send now",
+      "description": "Schedule immediate execution after an explicit user action.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "actor": "user"
+    },
+    {
+      "id": "action:latertext.pause_schedule",
+      "kind": "action",
+      "name": "Pause or resume schedule",
+      "description": "Change scheduling eligibility without deleting message content.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "actor": "user"
+    },
+    {
+      "id": "action:latertext.delete_schedule",
+      "kind": "action",
+      "name": "Delete schedule",
+      "description": "Soft-delete the selected schedule and reconcile pending alarms.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "actor": "user"
+    },
+    {
+      "id": "action:latertext.assisted_handoff",
+      "kind": "action",
+      "name": "Open messaging app",
+      "description": "Prepare content in the messaging app; user action remains required and sending is unverified.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "actor": "user"
+    },
+    {
+      "id": "action:latertext.pause_all",
+      "kind": "action",
+      "name": "Pause all messages",
+      "description": "Toggle global execution eligibility.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "actor": "user"
+    },
+    {
+      "id": "state:latertext.upcoming_empty",
+      "kind": "state",
+      "name": "No upcoming messages",
+      "description": "No active upcoming schedules are displayed.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ]
+    },
+    {
+      "id": "state:latertext.composer_blank",
+      "kind": "state",
+      "name": "Blank composer",
+      "description": "A new message has no recipient, text, or media.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ]
+    },
+    {
+      "id": "state:latertext.schedule_editing",
+      "kind": "state",
+      "name": "Editing timing",
+      "description": "The user can configure recurrence before saving.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ]
+    },
+    {
+      "id": "state:latertext.sent_to_carrier",
+      "kind": "state",
+      "name": "Sent to carrier",
+      "description": "Android accepted the message for carrier sending; delivery is separate.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ]
+    },
+    {
+      "id": "state:latertext.delivered",
+      "kind": "state",
+      "name": "Delivered",
+      "description": "A delivery callback or supported reconciliation confirms delivery.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ]
+    },
+    {
+      "id": "state:latertext.action_required",
+      "kind": "state",
+      "name": "Action required",
+      "description": "An assisted send needs an explicit action in the messaging app.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ]
+    },
+    {
+      "id": "state:latertext.failed",
+      "kind": "state",
+      "name": "Send failed",
+      "description": "The occurrence ended in a known failure or ambiguous send outcome.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ]
+    },
+    {
+      "id": "behavior:latertext.durable_execution",
+      "kind": "behavior",
+      "name": "Durable scheduled execution",
+      "description": "Claim due occurrences and retain per-attempt outcomes, safe retry state, and callback correlation.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "behavior_kind": "background"
+    },
+    {
+      "id": "behavior:latertext.recovery",
+      "kind": "behavior",
+      "name": "Schedule recovery",
+      "description": "Reconcile after reboot, clock changes, package replacement, app start and permission changes.",
+      "status": "active",
+      "availability_condition_id": null,
+      "aliases": [],
+      "tags": [
+        "android"
+      ],
+      "behavior_kind": "background"
+    }
+  ],
+  "relations": [
+    {
+      "id": "relation:latertext.r1",
+      "kind": "contains",
+      "from_id": "surface:latertext.upcoming",
+      "to_id": "component:latertext.upcoming_content",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r2",
+      "kind": "contains",
+      "from_id": "surface:latertext.history",
+      "to_id": "component:latertext.history_content",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r3",
+      "kind": "contains",
+      "from_id": "surface:latertext.settings",
+      "to_id": "component:latertext.settings_content",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r4",
+      "kind": "contains",
+      "from_id": "surface:latertext.composer",
+      "to_id": "component:latertext.composer_content",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r5",
+      "kind": "contains",
+      "from_id": "surface:latertext.schedule_editor",
+      "to_id": "component:latertext.schedule_editor_content",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r6",
+      "kind": "contains",
+      "from_id": "surface:latertext.detail",
+      "to_id": "component:latertext.detail_content",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r7",
+      "kind": "triggers",
+      "from_id": "surface:latertext.upcoming",
+      "to_id": "action:latertext.compose",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r8",
+      "kind": "triggers",
+      "from_id": "surface:latertext.schedule_editor",
+      "to_id": "action:latertext.save_schedule",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r9",
+      "kind": "triggers",
+      "from_id": "surface:latertext.composer",
+      "to_id": "action:latertext.send_now",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r10",
+      "kind": "triggers",
+      "from_id": "surface:latertext.detail",
+      "to_id": "action:latertext.pause_schedule",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r11",
+      "kind": "triggers",
+      "from_id": "surface:latertext.detail",
+      "to_id": "action:latertext.delete_schedule",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r12",
+      "kind": "triggers",
+      "from_id": "surface:latertext.detail",
+      "to_id": "action:latertext.assisted_handoff",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r13",
+      "kind": "triggers",
+      "from_id": "surface:latertext.upcoming",
+      "to_id": "action:latertext.pause_all",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r14",
+      "kind": "contains",
+      "from_id": "surface:latertext.upcoming",
+      "to_id": "state:latertext.upcoming_empty",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r15",
+      "kind": "contains",
+      "from_id": "surface:latertext.composer",
+      "to_id": "state:latertext.composer_blank",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r16",
+      "kind": "contains",
+      "from_id": "surface:latertext.schedule_editor",
+      "to_id": "state:latertext.schedule_editing",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r17",
+      "kind": "contains",
+      "from_id": "surface:latertext.history",
+      "to_id": "state:latertext.sent_to_carrier",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r18",
+      "kind": "contains",
+      "from_id": "surface:latertext.history",
+      "to_id": "state:latertext.delivered",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r19",
+      "kind": "contains",
+      "from_id": "surface:latertext.history",
+      "to_id": "state:latertext.action_required",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r20",
+      "kind": "contains",
+      "from_id": "surface:latertext.history",
+      "to_id": "state:latertext.failed",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r21",
+      "kind": "invokes",
+      "from_id": "action:latertext.save_schedule",
+      "to_id": "behavior:latertext.durable_execution",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    },
+    {
+      "id": "relation:latertext.r22",
+      "kind": "invokes",
+      "from_id": "action:latertext.save_schedule",
+      "to_id": "behavior:latertext.recovery",
+      "availability_condition_id": null,
+      "ordinal": null,
+      "label": null
+    }
+  ],
+  "conditions": [],
+  "profiles": [],
+  "config_bindings": [],
+  "implementation_bindings": [
+    {
+      "id": "binding:latertext.surface.upcoming",
+      "entity_id": "surface:latertext.upcoming",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/schedules/src/main/kotlin/com/patjackson/latertext/feature/schedules/SchedulesScreens.kt",
+      "symbol": "UpcomingScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.component.upcoming_content",
+      "entity_id": "component:latertext.upcoming_content",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/schedules/src/main/kotlin/com/patjackson/latertext/feature/schedules/SchedulesScreens.kt",
+      "symbol": "UpcomingScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.surface.history",
+      "entity_id": "surface:latertext.history",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/history/src/main/kotlin/com/patjackson/latertext/feature/history/HistoryScreen.kt",
+      "symbol": "HistoryScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.component.history_content",
+      "entity_id": "component:latertext.history_content",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/history/src/main/kotlin/com/patjackson/latertext/feature/history/HistoryScreen.kt",
+      "symbol": "HistoryScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.surface.settings",
+      "entity_id": "surface:latertext.settings",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/settings/src/main/kotlin/com/patjackson/latertext/feature/settings/SettingsScreen.kt",
+      "symbol": "SettingsScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.component.settings_content",
+      "entity_id": "component:latertext.settings_content",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/settings/src/main/kotlin/com/patjackson/latertext/feature/settings/SettingsScreen.kt",
+      "symbol": "SettingsScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.surface.composer",
+      "entity_id": "surface:latertext.composer",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/composer/src/main/kotlin/com/patjackson/latertext/feature/composer/ComposerScreen.kt",
+      "symbol": "ComposerScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.component.composer_content",
+      "entity_id": "component:latertext.composer_content",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/composer/src/main/kotlin/com/patjackson/latertext/feature/composer/ComposerScreen.kt",
+      "symbol": "ComposerScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.surface.schedule_editor",
+      "entity_id": "surface:latertext.schedule_editor",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/schedules/src/main/kotlin/com/patjackson/latertext/feature/schedules/SchedulesScreens.kt",
+      "symbol": "ScheduleEditorScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.component.schedule_editor_content",
+      "entity_id": "component:latertext.schedule_editor_content",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/schedules/src/main/kotlin/com/patjackson/latertext/feature/schedules/SchedulesScreens.kt",
+      "symbol": "ScheduleEditorScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.surface.detail",
+      "entity_id": "surface:latertext.detail",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/schedules/src/main/kotlin/com/patjackson/latertext/feature/schedules/SchedulesScreens.kt",
+      "symbol": "ScheduleDetailScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.component.detail_content",
+      "entity_id": "component:latertext.detail_content",
+      "repository": ".",
+      "platform": "android",
+      "path": "feature/schedules/src/main/kotlin/com/patjackson/latertext/feature/schedules/SchedulesScreens.kt",
+      "symbol": "ScheduleDetailScreen",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.action.compose",
+      "entity_id": "action:latertext.compose",
+      "repository": ".",
+      "platform": "android",
+      "path": "app/src/main/java/com/patjackson/latertext/AppViewModel.kt",
+      "symbol": "newMessage",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.action.save_schedule",
+      "entity_id": "action:latertext.save_schedule",
+      "repository": ".",
+      "platform": "android",
+      "path": "app/src/main/java/com/patjackson/latertext/AppViewModel.kt",
+      "symbol": "saveSchedule",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.action.send_now",
+      "entity_id": "action:latertext.send_now",
+      "repository": ".",
+      "platform": "android",
+      "path": "app/src/main/java/com/patjackson/latertext/AppViewModel.kt",
+      "symbol": "sendNow",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.action.pause_schedule",
+      "entity_id": "action:latertext.pause_schedule",
+      "repository": ".",
+      "platform": "android",
+      "path": "app/src/main/java/com/patjackson/latertext/AppViewModel.kt",
+      "symbol": "toggleSelectedPause",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.action.delete_schedule",
+      "entity_id": "action:latertext.delete_schedule",
+      "repository": ".",
+      "platform": "android",
+      "path": "app/src/main/java/com/patjackson/latertext/AppViewModel.kt",
+      "symbol": "deleteSelected",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.action.assisted_handoff",
+      "entity_id": "action:latertext.assisted_handoff",
+      "repository": ".",
+      "platform": "android",
+      "path": "app/src/main/java/com/patjackson/latertext/AppViewModel.kt",
+      "symbol": "openSelectedNow",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.action.pause_all",
+      "entity_id": "action:latertext.pause_all",
+      "repository": ".",
+      "platform": "android",
+      "path": "app/src/main/java/com/patjackson/latertext/AppViewModel.kt",
+      "symbol": "toggleGlobalPause",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.behavior.durable_execution",
+      "entity_id": "behavior:latertext.durable_execution",
+      "repository": ".",
+      "platform": "android",
+      "path": "platform/android/src/main/kotlin/com/patjackson/latertext/platform/android/execution/DueOccurrenceProcessor.kt",
+      "symbol": "DueOccurrenceProcessor",
+      "binding_kind": "definition"
+    },
+    {
+      "id": "binding:latertext.behavior.recovery",
+      "entity_id": "behavior:latertext.recovery",
+      "repository": ".",
+      "platform": "android",
+      "path": "platform/android/src/main/kotlin/com/patjackson/latertext/platform/android/execution/ExecutionRecoveryCoordinator.kt",
+      "symbol": "ExecutionRecoveryCoordinator",
+      "binding_kind": "definition"
+    }
+  ],
+  "references": []
+}

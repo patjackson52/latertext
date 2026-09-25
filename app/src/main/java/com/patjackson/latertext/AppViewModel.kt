@@ -122,6 +122,7 @@ class AppViewModel @Inject constructor(
     private val smsGateway: AutomaticSmsGateway,
     private val assistedMessaging: AssistedMessagingGateway,
     private val shareShortcuts: RecipientShareShortcutPublisher,
+    private val diagnostics: LaterTextDiagnostics,
 ) : ViewModel() {
     private val materializer = OccurrenceMaterializer(DefaultJitterRandom())
     private val _uiState = MutableStateFlow(LaterTextUiState())
@@ -394,6 +395,7 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { createSchedule(snapshot.composer, snapshot.editor, stagedAttachment) }
                 .onSuccess {
+                    diagnostics.scheduleSaved(true, snapshot.editor.frequency, stagedAttachment != null)
                     stagedAttachment = null
                     drafts.delete(ACTIVE_DRAFT_ID)
                     draftCreatedAtEpochMillis = System.currentTimeMillis()
@@ -412,6 +414,7 @@ class AppViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(editor = it.editor.copy(saving = false, error = error.message ?: "Could not save schedule"))
                     }
+                    diagnostics.scheduleSaved(false, snapshot.editor.frequency, stagedAttachment != null)
                 }
         }
     }
@@ -644,6 +647,7 @@ class AppViewModel @Inject constructor(
         val selected = _uiState.value.selectedSchedule ?: return
         viewModelScope.launch {
             schedules.setPaused(selected.id, !selected.paused, System.currentTimeMillis())
+            diagnostics.scheduleChanged(if (selected.paused) DiagnosticOperation.RESUME else DiagnosticOperation.PAUSE)
             alarmCoordinator.reconcile(ReconciliationCause.OCCURRENCE_CHANGED)
             navigate(AppScreen.UPCOMING)
         }
@@ -653,6 +657,7 @@ class AppViewModel @Inject constructor(
         val selected = _uiState.value.selectedSchedule ?: return
         viewModelScope.launch {
             schedules.softDelete(selected.id, System.currentTimeMillis())
+            diagnostics.scheduleChanged(DiagnosticOperation.DELETE)
             selectedScheduleId = null
             selectedOccurrenceId = null
             alarmCoordinator.reconcile(ReconciliationCause.OCCURRENCE_CHANGED)
@@ -664,8 +669,12 @@ class AppViewModel @Inject constructor(
 
     fun updateSettings(transform: (UserSettings) -> UserSettings) {
         viewModelScope.launch {
+            val wasPaused = _uiState.value.settings.globallyPaused
             runCatching { settingsRepository.update(transform) }
-                .onSuccess {
+                .onSuccess { settings ->
+                    if (settings.globalPaused != wasPaused) {
+                        diagnostics.scheduleChanged(if (settings.globalPaused) DiagnosticOperation.PAUSE_ALL else DiagnosticOperation.RESUME_ALL)
+                    }
                     alarmCoordinator.reconcile(ReconciliationCause.OCCURRENCE_CHANGED)
                     refresh()
                 }

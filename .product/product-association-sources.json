@@ -1,0 +1,25 @@
+{
+  "schema_version": "product-association-sources/v1",
+  "definition_digest": "sha256:f1db52836f179b6928829c76fcfcfd57bcb72a1f620051adcd744c52d7f762b2",
+  "sources": [
+    {
+      "path_prefix": "app/src/main/",
+      "language": "kotlin",
+      "platform": "android",
+      "generated_declarations": false
+    },
+    {
+      "path_prefix": "feature/",
+      "language": "kotlin",
+      "platform": "android",
+      "generated_declarations": false
+    },
+    {
+      "path_prefix": "platform/android/src/main/",
+      "language": "kotlin",
+      "platform": "android",
+      "generated_declarations": false
+    }
+  ],
+  "heuristic_suggestions": []
+}

@@ -1,0 +1,22 @@
+$id: swip:event:latertext_schedule_saved:1
+type: object
+additionalProperties: false
+x-swip:
+  owner: latertext
+  introduced: 2026-09-24
+  lifecycle: active
+  anonymous_safe: true
+  destinations: [analytics]
+properties:
+  outcome:
+    type: string
+    enum: [saved, failed]
+    x-swip: { privacy_class: none }
+  frequency:
+    type: string
+    enum: [once, daily, weekly, monthly]
+    x-swip: { privacy_class: none }
+  has_media:
+    type: boolean
+    x-swip: { privacy_class: none }
+required: [outcome, frequency, has_media]

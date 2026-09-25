@@ -1,0 +1,15 @@
+$id: swip:event:latertext_screen_viewed:1
+type: object
+additionalProperties: false
+x-swip:
+  owner: latertext
+  introduced: 2026-09-24
+  lifecycle: active
+  anonymous_safe: true
+  destinations: [analytics]
+properties:
+  screen:
+    type: string
+    enum: [upcoming, history, settings, composer, schedule_editor, detail]
+    x-swip: { privacy_class: none }
+required: [screen]

@@ -1,0 +1,15 @@
+$id: swip:event:latertext_schedule_changed:1
+type: object
+additionalProperties: false
+x-swip:
+  owner: latertext
+  introduced: 2026-09-24
+  lifecycle: active
+  anonymous_safe: true
+  destinations: [analytics]
+properties:
+  operation:
+    type: string
+    enum: [pause, resume, delete, pause_all, resume_all]
+    x-swip: { privacy_class: none }
+required: [operation]

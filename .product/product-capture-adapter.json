@@ -1,0 +1,49 @@
+{
+  "schema_version": "product-android-capture-adapter-manifest/v1",
+  "adapter_name": "shipyard_android_instrumentation",
+  "adapter_version": "1.0.0",
+  "definition_digest": "sha256:f1db52836f179b6928829c76fcfcfd57bcb72a1f620051adcd744c52d7f762b2",
+  "script_path": "tools/product/capture_android.py",
+  "fixture_schema_version": "latertext_synthetic_android_v1",
+  "profiles": [
+    {
+      "id": "phone_normal",
+      "device_profile": "android_phone",
+      "width_px": 1080,
+      "height_px": 2400,
+      "density_dpi": 420,
+      "font_scale_ppm": 1000000
+    },
+    {
+      "id": "phone_font200",
+      "device_profile": "android_phone_large_text",
+      "width_px": 1080,
+      "height_px": 2400,
+      "density_dpi": 420,
+      "font_scale_ppm": 2000000
+    }
+  ],
+  "targets": [
+    {
+      "id": "empty_upcoming",
+      "entity_field": "component_latertext_upcoming_content",
+      "surface_field": "surface_latertext_upcoming",
+      "state_field": "state_latertext_upcoming_empty",
+      "fixture_id": "latertext_empty_upcoming"
+    },
+    {
+      "id": "blank_composer",
+      "entity_field": "component_latertext_composer_content",
+      "surface_field": "surface_latertext_composer",
+      "state_field": "state_latertext_composer_blank",
+      "fixture_id": "latertext_blank_composer"
+    },
+    {
+      "id": "schedule_editor",
+      "entity_field": "component_latertext_schedule_editor_content",
+      "surface_field": "surface_latertext_schedule_editor",
+      "state_field": "state_latertext_schedule_editing",
+      "fixture_id": "latertext_schedule_editor"
+    }
+  ]
+}

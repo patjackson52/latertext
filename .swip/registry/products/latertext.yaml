@@ -1,0 +1,9 @@
+# Developer-session analytics: no network, disk queue, or production source.
+product: latertext
+tenant: sloopworks
+privacy_profile_map: default
+delivery: local_only
+modules: [analytics]
+sources:
+  - { platform: android, env: dev, key: swip_pub_latertext_android_dev }
+crash_vendor: none

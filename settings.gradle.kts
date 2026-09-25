@@ -13,6 +13,30 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        val packagesUser = providers.environmentVariable("GITHUB_ACTOR")
+            .orElse(providers.gradleProperty("gpr.user")).orElse("")
+        val packagesToken = providers.environmentVariable("SLOOPWORKS_PACKAGES_TOKEN")
+            .orElse(providers.gradleProperty("gpr.token"))
+            .orElse(providers.environmentVariable("GITHUB_TOKEN")).orElse("")
+        for ((group, repository) in listOf(
+            "works.sloop.swip" to "swip",
+            "com.sloopworks.debugdrawer" to "debugdrawer",
+            "com.sloopworks.ui" to "sloopworks-ui",
+        )) {
+            exclusiveContent {
+                forRepository {
+                    maven {
+                        name = "SloopWorks${repository.replace("-", "")}"
+                        url = uri("https://maven.pkg.github.com/SloopWorks/$repository")
+                        credentials {
+                            username = packagesUser.get()
+                            password = packagesToken.get()
+                        }
+                    }
+                }
+                filter { includeGroup(group) }
+            }
+        }
     }
 }
 

@@ -21,12 +21,14 @@ class LaterTextApplication : Application(), Configuration.Provider {
     @Inject lateinit var recovery: ExecutionRecoveryCoordinator
     @Inject lateinit var watchdog: ExecutionWatchdogScheduler
     @Inject lateinit var smsProviderObserver: SmsProviderChangeObserver
+    @Inject lateinit var diagnostics: LaterTextDiagnostics
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
         super.onCreate()
+        diagnostics.install()
         AndroidNotificationPublisher(this).ensureChannels()
         watchdog.ensureScheduled()
         smsProviderObserver.start()
