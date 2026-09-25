@@ -6,12 +6,4 @@
         android:name="android.hardware.telephony"
         android:required="false" />
 
-    <application>
-        <receiver
-            android:name=".SmsSentResultReceiver"
-            android:exported="false" />
-        <receiver
-            android:name=".SmsDeliveryResultReceiver"
-            android:exported="false" />
-    </application>
 </manifest>

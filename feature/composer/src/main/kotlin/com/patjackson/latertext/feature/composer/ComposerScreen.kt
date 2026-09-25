@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.patjackson.latertext.core.designsystem.AdaptiveActionRow
+import com.patjackson.latertext.core.designsystem.MessageMediaPreview
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 data class ComposerUiState(
@@ -45,6 +46,10 @@ data class ComposerUiState(
     val importInProgress: Boolean = false,
     val error: String? = null,
     val smsPartCount: Int = 1,
+    val attachmentPath: String? = null,
+    val attachmentWidthPixels: Int? = null,
+    val attachmentHeightPixels: Int? = null,
+    val attachmentIsAnimated: Boolean = false,
 ) {
     val canSubmit: Boolean
         get() = !importInProgress && recipient.isNotBlank() &&
@@ -110,6 +115,17 @@ fun ComposerScreen(
 
             if (state.attachmentLabel != null) {
                 androidx.compose.material3.Card(modifier = Modifier.fillMaxWidth()) {
+                    state.attachmentPath?.let { path ->
+                        MessageMediaPreview(
+                            absolutePath = path,
+                            mimeType = state.attachmentMimeType,
+                            isAnimated = state.attachmentIsAnimated,
+                            widthPixels = state.attachmentWidthPixels,
+                            heightPixels = state.attachmentHeightPixels,
+                            modifier = Modifier.padding(start = 14.dp, top = 14.dp, end = 14.dp),
+                            maximumHeight = 360.dp,
+                        )
+                    }
                     Row(
                         modifier = Modifier.padding(14.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -152,7 +168,7 @@ fun ComposerScreen(
                 if (state.attachmentLabel == null) {
                     "Automatic SMS · ${state.smsPartCount} part${if (state.smsPartCount == 1) "" else "s"}"
                 } else {
-                    "Assisted media · send outcome remains unverified"
+                    "Automatic MMS when carrier limits allow · otherwise review before sharing"
                 },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
@@ -177,7 +193,7 @@ fun ComposerScreen(
                     enabled = state.canSubmit,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (state.attachmentLabel == null) "Send now" else "Review & share now")
+                    Text(if (state.attachmentLabel == null) "Send now" else "Send / review now")
                 }
             },
             primary = {

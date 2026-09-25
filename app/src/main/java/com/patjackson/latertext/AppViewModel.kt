@@ -26,6 +26,7 @@ import com.patjackson.latertext.data.api.CreateScheduleCommand
 import com.patjackson.latertext.data.api.DraftAttachmentRecord
 import com.patjackson.latertext.data.api.DraftRepository
 import com.patjackson.latertext.data.api.DraftState
+import com.patjackson.latertext.data.api.DeliveryOutcome
 import com.patjackson.latertext.data.api.EndCondition
 import com.patjackson.latertext.data.api.MissedPolicy as DataMissedPolicy
 import com.patjackson.latertext.data.api.MonthlyEdgePolicy
@@ -41,6 +42,7 @@ import com.patjackson.latertext.data.api.ScheduleGraph
 import com.patjackson.latertext.data.api.ScheduleRecord
 import com.patjackson.latertext.data.api.ScheduleRepository
 import com.patjackson.latertext.data.api.ScheduleState
+import com.patjackson.latertext.data.api.SendOutcome
 import com.patjackson.latertext.data.api.SettingsRepository
 import com.patjackson.latertext.data.api.TransportMode
 import com.patjackson.latertext.data.api.UserSettings
@@ -82,9 +84,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 enum class AppScreen { UPCOMING, HISTORY, SETTINGS, COMPOSER, SCHEDULE_EDITOR, DETAIL }
 
@@ -121,58 +127,78 @@ class AppViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LaterTextUiState())
     val uiState: StateFlow<LaterTextUiState> = _uiState.asStateFlow()
     private var stagedAttachment: AttachmentAssetRecord? = null
-    private var pendingOccurrenceToOpen: String? = null
+    private var selectedScheduleId: String? = null
+    private var selectedOccurrenceId: String? = null
+    private var openSelectionWhenLoaded: Boolean = false
     private var draftCreatedAtEpochMillis = System.currentTimeMillis()
     private var draftSaveJob: Job? = null
+    private val refreshMutex = Mutex()
 
     init {
-        refresh()
+        viewModelScope.launch {
+            schedules.observeChanges().conflate().collect {
+                loadLatest(showLoading = _uiState.value.loading)
+            }
+        }
         restoreDraft()
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(loading = true) }
-            runCatching {
-                val userSettings = settingsRepository.get()
-                val graphs = schedules.listAll(250)
-                val readiness = readinessGateway.snapshot()
-                val subscriptionLabel = subscriptions.activeSubscriptions()
-                    .firstOrNull { it.subscriptionId == userSettings.preferredSubscriptionId }
-                    ?.displayName
-                    ?: subscriptions.activeSubscriptions().firstOrNull { it.isDefaultForSms }?.displayName
-                    ?: "System default"
-                Triple(userSettings, graphs, readiness to subscriptionLabel)
-            }.onSuccess { (userSettings, graphs, readinessAndLabel) ->
-                val (readiness, label) = readinessAndLabel
-                val upcoming = graphs.mapNotNull(::toUpcoming)
-                val requestedOccurrenceId = pendingOccurrenceToOpen
-                val requestedSchedule = upcoming.firstOrNull {
-                    it.occurrenceId == requestedOccurrenceId
+        viewModelScope.launch { loadLatest(showLoading = true) }
+    }
+
+    private suspend fun loadLatest(showLoading: Boolean) = refreshMutex.withLock {
+        if (showLoading) _uiState.update { it.copy(loading = true) }
+        runCatching {
+            val userSettings = settingsRepository.get()
+            val graphs = schedules.listAll(250)
+            val readiness = readinessGateway.snapshot()
+            val activeSubscriptions = subscriptions.activeSubscriptions()
+            val subscriptionLabel = activeSubscriptions
+                .firstOrNull { it.subscriptionId == userSettings.preferredSubscriptionId }
+                ?.displayName
+                ?: activeSubscriptions.firstOrNull { it.isDefaultForSms }?.displayName
+                ?: "System default"
+            Triple(userSettings, graphs, readiness to subscriptionLabel)
+        }.onSuccess { (userSettings, graphs, readinessAndLabel) ->
+            val (readiness, label) = readinessAndLabel
+            val upcoming = graphs.mapNotNull(::toUpcoming)
+            val selected = selectedOccurrenceId?.let { occurrenceId ->
+                graphs.firstNotNullOfOrNull { graph ->
+                    graph.occurrences.firstOrNull { it.id == occurrenceId }
+                        ?.let { toScheduleUi(graph, it) }
                 }
-                if (requestedSchedule != null) pendingOccurrenceToOpen = null
-                _uiState.update {
-                    it.copy(
-                        loading = false,
-                        upcoming = upcoming,
-                        history = graphs.flatMap(::toHistory)
-                            .sortedByDescending(HistoryItemUi::sortEpochMillis),
-                        settings = userSettings.toUi(readiness.canSendSms, readiness.canPostNotifications,
-                            readiness.canScheduleExactAlarms, readiness.hasActiveSmsSubscription, label),
-                        editor = it.editor.copy(
-                            exactTimingAvailable = readiness.canScheduleExactAlarms,
-                            actionNotificationsAvailable = readiness.canPostNotifications &&
-                                userSettings.notificationsEnabled &&
-                                userSettings.actionRequiredNotificationsEnabled,
-                        ),
-                        selectedSchedule = requestedSchedule ?: it.selectedSchedule,
-                        screen = if (requestedSchedule != null) AppScreen.DETAIL else it.screen,
-                    )
-                }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(loading = false, snackbar = error.message ?: "Unable to load LaterText")
-                }
+            } ?: selectedScheduleId?.let { scheduleId ->
+                graphs.firstOrNull { it.schedule.id == scheduleId }?.let(::toUpcoming)
+            }
+            val shouldOpenSelection = openSelectionWhenLoaded && selected != null
+            if (shouldOpenSelection) openSelectionWhenLoaded = false
+            _uiState.update {
+                it.copy(
+                    loading = false,
+                    upcoming = upcoming,
+                    history = graphs.flatMap(::toHistory)
+                        .sortedByDescending(HistoryItemUi::sortEpochMillis),
+                    settings = userSettings.toUi(readiness.canSendSms, readiness.canPostNotifications,
+                        readiness.canScheduleExactAlarms, readiness.hasActiveSmsSubscription,
+                        readiness.canReadSmsHistory, label),
+                    editor = it.editor.copy(
+                        exactTimingAvailable = readiness.canScheduleExactAlarms,
+                        actionNotificationsAvailable = readiness.canPostNotifications &&
+                            userSettings.notificationsEnabled &&
+                            userSettings.actionRequiredNotificationsEnabled,
+                    ),
+                    selectedSchedule = selected,
+                    screen = when {
+                        shouldOpenSelection -> AppScreen.DETAIL
+                        it.screen == AppScreen.DETAIL && selected == null -> AppScreen.UPCOMING
+                        else -> it.screen
+                    },
+                )
+            }
+        }.onFailure { error ->
+            _uiState.update {
+                it.copy(loading = false, snackbar = error.message ?: "Unable to load LaterText")
             }
         }
     }
@@ -203,6 +229,8 @@ class AppViewModel @Inject constructor(
             )
         }
         stagedAttachment = null
+        selectedScheduleId = null
+        selectedOccurrenceId = null
     }
 
     fun setRecipient(value: String, displayName: String? = null) {
@@ -292,6 +320,10 @@ class AppViewModel @Inject constructor(
                         composer = it.composer.copy(
                             attachmentLabel = "${asset.mimeType.substringAfter('/').uppercase()} · ${formatBytes(asset.byteCount)}",
                             attachmentMimeType = asset.mimeType,
+                            attachmentPath = asset.absolutePrivatePath(),
+                            attachmentWidthPixels = asset.widthPixels,
+                            attachmentHeightPixels = asset.heightPixels,
+                            attachmentIsAnimated = asset.isAnimated,
                             importInProgress = false,
                             error = null,
                         ),
@@ -316,7 +348,16 @@ class AppViewModel @Inject constructor(
         val asset = stagedAttachment
         stagedAttachment = null
         _uiState.update {
-            it.copy(composer = it.composer.copy(attachmentLabel = null, attachmentMimeType = null))
+            it.copy(
+                composer = it.composer.copy(
+                    attachmentLabel = null,
+                    attachmentMimeType = null,
+                    attachmentPath = null,
+                    attachmentWidthPixels = null,
+                    attachmentHeightPixels = null,
+                    attachmentIsAnimated = false,
+                ),
+            )
         }
         if (asset != null) viewModelScope.launch {
             drafts.detach(ACTIVE_DRAFT_ID)
@@ -414,7 +455,25 @@ class AppViewModel @Inject constructor(
             gracePeriod = Duration.ofHours(4),
         ).added
         require(materialized.isNotEmpty()) { "Choose a future date and time" }
-        val transport = if (attachment == null) TransportMode.AUTOMATIC_SMS else TransportMode.ASSISTED_MEDIA
+        val transport = if (attachment == null) {
+            TransportMode.AUTOMATIC_SMS
+        } else {
+            val userSettings = settingsRepository.get()
+            val subscriptionId = resolveActiveSubscription(userSettings.preferredSubscriptionId)
+            val supportsAutomaticMms = subscriptionId?.let { id ->
+                runCatching { smsGateway.mmsCapability(id) }.getOrNull()?.let { capability ->
+                    capability.acceptsText(composer.message.toByteArray(Charsets.UTF_8).size) &&
+                        capability.canPrepare(
+                            attachment.mimeType,
+                            attachment.byteCount,
+                            attachment.widthPixels,
+                            attachment.heightPixels,
+                            attachment.isAnimated,
+                        )
+                }
+            } == true
+            if (supportsAutomaticMms) TransportMode.AUTOMATIC_MMS else TransportMode.ASSISTED_MEDIA
+        }
         val createdMillis = now.toEpochMilli()
         val command = CreateScheduleCommand(
             recipient = RecipientEndpointRecord(
@@ -488,6 +547,10 @@ class AppViewModel @Inject constructor(
                     "${it.mimeType.substringAfter('/').uppercase()} · ${formatBytes(it.byteCount)}"
                 },
                 attachmentMimeType = attachment?.mimeType,
+                attachmentPath = attachment?.absolutePrivatePath(),
+                attachmentWidthPixels = attachment?.widthPixels,
+                attachmentHeightPixels = attachment?.heightPixels,
+                attachmentIsAnimated = attachment?.isAnimated == true,
                 error = if (draft.state == DraftState.IMPORTING_ATTACHMENT && attachment == null) {
                     "The interrupted attachment import could not be restored"
                 } else null,
@@ -527,15 +590,21 @@ class AppViewModel @Inject constructor(
 
     fun openSchedule(id: String) {
         val selected = _uiState.value.upcoming.firstOrNull { it.id == id } ?: return
+        selectedScheduleId = selected.id
+        selectedOccurrenceId = selected.occurrenceId
         _uiState.update { it.copy(selectedSchedule = selected, screen = AppScreen.DETAIL) }
     }
 
     fun openOccurrence(occurrenceId: String) {
-        pendingOccurrenceToOpen = occurrenceId
+        selectedOccurrenceId = occurrenceId
+        selectedScheduleId = null
         val selected = _uiState.value.upcoming.firstOrNull { it.occurrenceId == occurrenceId }
         if (selected != null) {
-            pendingOccurrenceToOpen = null
+            selectedScheduleId = selected.id
             _uiState.update { it.copy(selectedSchedule = selected, screen = AppScreen.DETAIL) }
+        } else {
+            openSelectionWhenLoaded = true
+            refresh()
         }
     }
 
@@ -584,6 +653,8 @@ class AppViewModel @Inject constructor(
         val selected = _uiState.value.selectedSchedule ?: return
         viewModelScope.launch {
             schedules.softDelete(selected.id, System.currentTimeMillis())
+            selectedScheduleId = null
+            selectedOccurrenceId = null
             alarmCoordinator.reconcile(ReconciliationCause.OCCURRENCE_CHANGED)
             navigate(AppScreen.UPCOMING)
         }
@@ -614,29 +685,47 @@ class AppViewModel @Inject constructor(
         subscriptions.defaultSmsSubscriptionId()
     }
 
+    private fun resolveActiveSubscription(preferredId: Int?): Int? {
+        if (preferredId != null && subscriptions.isActive(preferredId)) return preferredId
+        val defaultId = subscriptions.defaultSmsSubscriptionId()
+        if (defaultId != null && subscriptions.isActive(defaultId)) return defaultId
+        return subscriptions.activeSubscriptions().singleOrNull()?.subscriptionId
+    }
+
     private fun toUpcoming(graph: ScheduleGraph): UpcomingScheduleUi? {
         val occurrence = graph.occurrences
             .filter { it.state !in DATA_TERMINAL_STATES }
             .minByOrNull(OccurrenceRecord::targetAtEpochMillis) ?: return null
-        val attachment = graph.activeAttachment
+        return toScheduleUi(graph, occurrence)
+    }
+
+    private fun toScheduleUi(graph: ScheduleGraph, occurrence: OccurrenceRecord): UpcomingScheduleUi {
+        val attachment = graph.attachmentsByContentRevisionId[occurrence.contentRevisionId]
+            ?: graph.activeAttachment.takeIf { graph.activeContent?.id == occurrence.contentRevisionId }
+        val content = graph.contentRevisions.firstOrNull { it.id == occurrence.contentRevisionId }
+            ?: graph.activeContent
         return UpcomingScheduleUi(
             id = graph.schedule.id,
             recipient = graph.recipient.displayName ?: graph.recipient.rawAddress,
-            messagePreview = graph.activeContent?.text.orEmpty().ifBlank { "Media message" },
+            messagePreview = content?.text.orEmpty().ifBlank { "Media message" },
             timing = occurrence.describeTiming(),
             status = when {
                 graph.schedule.state == ScheduleState.PAUSED -> "Paused"
-                occurrence.state == OccurrenceState.READY_FOR_USER -> "Action needed"
-                else -> "Scheduled"
+                else -> occurrence.sendStatusDisplay()
             },
             paused = graph.schedule.state == ScheduleState.PAUSED,
             actionRequired = occurrence.state == OccurrenceState.READY_FOR_USER,
             assistedMedia = graph.schedule.transportMode == TransportMode.ASSISTED_MEDIA,
-            outcomeUnverified = graph.schedule.transportMode != TransportMode.AUTOMATIC_SMS,
+            outcomeUnverified = graph.schedule.transportMode !in AUTOMATIC_TRANSPORTS,
             occurrenceId = occurrence.id,
             attachmentPath = attachment?.absolutePrivatePath(),
             attachmentMimeType = attachment?.mimeType,
             recipientAddress = graph.recipient.normalizedAddress,
+            deliveryStatus = occurrence.deliveryStatusDisplay(graph.schedule.transportMode),
+            canSendNow = occurrence.state in USER_SENDABLE_STATES,
+            attachmentWidthPixels = attachment?.widthPixels,
+            attachmentHeightPixels = attachment?.heightPixels,
+            attachmentIsAnimated = attachment?.isAnimated == true,
         )
     }
 
@@ -652,26 +741,30 @@ class AppViewModel @Inject constructor(
     private fun toHistory(graph: ScheduleGraph): List<HistoryItemUi> = graph.occurrences
         .filter { it.state !in setOf(OccurrenceState.PLANNED, OccurrenceState.ARMED) }
         .map { occurrence ->
+            val content = graph.contentRevisions.firstOrNull { it.id == occurrence.contentRevisionId }
+                ?: graph.activeContent
+            val attachment = graph.attachmentsByContentRevisionId[occurrence.contentRevisionId]
+                ?: graph.activeAttachment.takeIf { graph.activeContent?.id == occurrence.contentRevisionId }
             HistoryItemUi(
                 id = occurrence.id,
                 recipient = graph.recipient.displayName ?: graph.recipient.rawAddress,
-                preview = graph.activeContent?.text.orEmpty().ifBlank { "Media message" },
+                preview = content?.text.orEmpty().ifBlank { "Media message" },
                 happenedAt = Instant.ofEpochMilli(occurrence.updatedAtEpochMillis)
                     .atZone(ZoneId.systemDefault()).format(HISTORY_FORMAT),
-                sendStatus = occurrence.state.displayName(),
-                deliveryStatus = when (occurrence.state) {
-                    OccurrenceState.DELIVERED -> "Delivered"
-                    OccurrenceState.DELIVERY_FAILED -> "Failed"
-                    OccurrenceState.DELIVERY_UNAVAILABLE -> "Unavailable"
-                    else -> "Not reported"
-                },
+                sendStatus = occurrence.sendStatusDisplay(),
+                deliveryStatus = occurrence.deliveryStatusDisplay(graph.schedule.transportMode),
                 warning = occurrence.state in setOf(
                     OccurrenceState.FAILED_TERMINAL,
                     OccurrenceState.PARTIAL_AMBIGUOUS,
                     OccurrenceState.EXPIRED,
                 ),
-                assistedOutcomeUnverified = graph.schedule.transportMode != TransportMode.AUTOMATIC_SMS,
+                assistedOutcomeUnverified = graph.schedule.transportMode !in AUTOMATIC_TRANSPORTS,
                 sortEpochMillis = occurrence.updatedAtEpochMillis,
+                attachmentPath = attachment?.absolutePrivatePath(),
+                attachmentMimeType = attachment?.mimeType,
+                attachmentWidthPixels = attachment?.widthPixels,
+                attachmentHeightPixels = attachment?.heightPixels,
+                attachmentIsAnimated = attachment?.isAnimated == true,
             )
         }
 
@@ -690,6 +783,17 @@ class AppViewModel @Inject constructor(
             OccurrenceState.SKIPPED_PAUSED,
             OccurrenceState.SKIPPED_MISSED,
             OccurrenceState.CANCELLED,
+        )
+        private val USER_SENDABLE_STATES = setOf(
+            OccurrenceState.PLANNED,
+            OccurrenceState.ARMED,
+            OccurrenceState.DUE,
+            OccurrenceState.READY_FOR_USER,
+            OccurrenceState.OPENED_IN_LATER_TEXT,
+        )
+        private val AUTOMATIC_TRANSPORTS = setOf(
+            TransportMode.AUTOMATIC_SMS,
+            TransportMode.AUTOMATIC_MMS,
         )
     }
 }
@@ -750,7 +854,9 @@ private fun OccurrenceRecord.describeTiming(): String {
 }
 
 private fun OccurrenceState.displayName(): String = when (this) {
-    OccurrenceState.CLAIMED, OccurrenceState.SENDING -> "Sending"
+    OccurrenceState.PLANNED, OccurrenceState.ARMED -> "Scheduled"
+    OccurrenceState.DUE, OccurrenceState.CLAIMED -> "Preparing to send"
+    OccurrenceState.SENDING -> "Waiting for carrier confirmation"
     OccurrenceState.READY_FOR_USER -> "Action needed"
     OccurrenceState.OPENED_IN_LATER_TEXT -> "Opened in LaterText"
     OccurrenceState.SHARED_TO_MESSAGING_APP -> "Shared · unverified"
@@ -759,7 +865,7 @@ private fun OccurrenceState.displayName(): String = when (this) {
     OccurrenceState.DELIVERY_FAILED -> "Delivery failed"
     OccurrenceState.DELIVERY_UNAVAILABLE -> "Delivery unavailable"
     OccurrenceState.FAILED_TERMINAL -> "Failed"
-    OccurrenceState.PARTIAL_AMBIGUOUS -> "Partial or ambiguous"
+    OccurrenceState.PARTIAL_AMBIGUOUS -> "Status unknown · message may have sent"
     OccurrenceState.SKIPPED_PAUSED -> "Skipped while paused"
     OccurrenceState.SKIPPED_MISSED -> "Missed"
     OccurrenceState.MISSED -> "Missed"
@@ -768,11 +874,41 @@ private fun OccurrenceState.displayName(): String = when (this) {
     else -> name.lowercase().replace('_', ' ')
 }
 
+internal fun DeliveryOutcome.displayName(): String = when (this) {
+    DeliveryOutcome.NOT_REQUESTED -> "Not requested yet"
+    DeliveryOutcome.PENDING -> "Pending carrier report"
+    DeliveryOutcome.DELIVERED -> "Delivered"
+    DeliveryOutcome.FAILED -> "Failed"
+    DeliveryOutcome.UNAVAILABLE -> "Unavailable"
+}
+
+private fun OccurrenceRecord.deliveryStatusDisplay(transportMode: TransportMode): String =
+    if (transportMode == TransportMode.AUTOMATIC_MMS && sendOutcome == SendOutcome.SENT_TO_CARRIER) {
+        "Not available for MMS"
+    } else {
+        deliveryOutcome.displayName()
+    }
+
+internal fun OccurrenceRecord.sendStatusDisplay(): String = when (sendOutcome) {
+    SendOutcome.NOT_STARTED -> state.displayName()
+    SendOutcome.PENDING -> when (state) {
+        OccurrenceState.CLAIMED, OccurrenceState.DUE -> "Preparing to send"
+        else -> "Waiting for carrier confirmation"
+    }
+    SendOutcome.SENT_TO_CARRIER -> "Sent to carrier"
+    SendOutcome.FAILED -> "Failed"
+    SendOutcome.PARTIAL_OR_AMBIGUOUS -> "Status unknown · message may have sent"
+    SendOutcome.SKIPPED -> state.displayName()
+    SendOutcome.USER_ACTION_REQUIRED -> "Action needed"
+    SendOutcome.SHARED_UNVERIFIED -> "Shared · unverified"
+}
+
 private fun UserSettings.toUi(
     canSendSms: Boolean,
     canNotify: Boolean,
     canExact: Boolean,
     hasSim: Boolean,
+    canReadSmsHistory: Boolean,
     simLabel: String,
 ) = SettingsUiState(
     smsPermission = canSendSms,
@@ -785,6 +921,7 @@ private fun UserSettings.toUi(
     deliveryNotifications = deliveryNotificationsEnabled,
     globallyPaused = globalPaused,
     simLabel = simLabel,
+    smsHistoryPermission = canReadSmsHistory,
 )
 
 private fun formatBytes(bytes: Long): String = when {

@@ -288,6 +288,11 @@ data class SendAttemptEntity(
     @ColumnInfo(name = "started_at") val startedAtEpochMillis: Long,
     @ColumnInfo(name = "finished_at") val finishedAtEpochMillis: Long?,
     @ColumnInfo(name = "delivery_deadline_at") val deliveryDeadlineAtEpochMillis: Long?,
+    @ColumnInfo(name = "subscription_id") val subscriptionId: Int?,
+    @ColumnInfo(name = "provider_message_id") val providerMessageId: Long?,
+    @ColumnInfo(name = "provider_status") val providerStatus: Int?,
+    @ColumnInfo(name = "provider_error_code") val providerErrorCode: Int?,
+    @ColumnInfo(name = "provider_observed_at") val providerObservedAtEpochMillis: Long?,
 )
 
 @Entity(

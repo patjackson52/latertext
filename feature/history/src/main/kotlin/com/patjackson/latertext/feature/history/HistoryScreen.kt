@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.patjackson.latertext.core.designsystem.MessageMediaPreview
 
 enum class HistoryFilter { ALL, SENT, FAILED, ACTION_NEEDED }
 
@@ -32,6 +33,11 @@ data class HistoryItemUi(
     val warning: Boolean = false,
     val assistedOutcomeUnverified: Boolean = false,
     val sortEpochMillis: Long = 0,
+    val attachmentPath: String? = null,
+    val attachmentMimeType: String? = null,
+    val attachmentWidthPixels: Int? = null,
+    val attachmentHeightPixels: Int? = null,
+    val attachmentIsAnimated: Boolean = false,
 )
 
 @Composable
@@ -89,7 +95,19 @@ fun HistoryScreen(
                         else MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    Text(item.preview, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    item.attachmentPath?.let { path ->
+                        MessageMediaPreview(
+                            absolutePath = path,
+                            mimeType = item.attachmentMimeType,
+                            isAnimated = item.attachmentIsAnimated,
+                            widthPixels = item.attachmentWidthPixels,
+                            heightPixels = item.attachmentHeightPixels,
+                            maximumHeight = 260.dp,
+                        )
+                    }
+                    if (item.attachmentPath == null || item.preview != "Media message") {
+                        Text(item.preview, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                     Text(item.happenedAt, style = MaterialTheme.typography.bodySmall)
                     if (item.assistedOutcomeUnverified) {
                         Text(

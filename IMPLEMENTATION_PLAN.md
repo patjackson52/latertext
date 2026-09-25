@@ -29,14 +29,14 @@ or platform behavior.
 | Distribution | Developer-sideloaded APK. Google Play policy work is deferred. |
 | Application ID | Use `com.patjackson.latertext` unless changed before scaffolding. |
 | SDK | `compileSdk = 37`, `targetSdk = 37`, `minSdk = 28`. |
-| Primary transport | Automatic one-to-one text SMS using `SEND_SMS`. |
+| Primary transport | Automatic one-to-one text SMS and eligible single-image MMS using `SEND_SMS`. |
 | RCS | No automatic RCS. Text may be handed to the default messaging app and is always recorded as unverified. |
-| MMS | Automatic MMS is deferred. Media messages use a user-assisted send flow. |
+| MMS | Use `SmsManager.sendMultimediaMessage` with a valid `Send.req` PDU. Android owns subscription APN/MMSC/proxy selection; LaterText passes no hard-coded carrier URL or override bundle. |
 | GIF discovery | No built-in GIF browser, GIPHY API, API key, trending feed, search, rating setting, or GIF network cache. |
 | Keyboard media | Accept GIFs, stickers, and images from compliant third-party keyboards using Android Receive Content / Commit Content. |
 | Other media intake | Support Photo Picker, clipboard/receive-content, drag-and-drop, and sharesheet media. |
 | Media limit | One attachment per draft/schedule in v1. |
-| Media at due time | Post an action-required notification, open a LaterText review screen, then share the attachment to a messaging app. The recipient might need to be selected again. |
+| Media at due time | Automatically send a supported attachment that can be prepared within live carrier limits. Otherwise post an action-required notification and use assisted review/share. |
 | Assisted status | `READY_FOR_USER`, `OPENED_IN_LATER_TEXT`, `SHARED_TO_MESSAGING_APP`, `EXPIRED`; never infer sent or delivered. |
 | Contacts | API 37 Contact Picker with a legacy phone picker fallback. No broad address-book mirror. |
 | Recurrence | Once, daily, weekly, and monthly; explicit start, end, zone, DST, and monthly-edge semantics below. |
@@ -104,6 +104,27 @@ or platform behavior.
 - Partial or ambiguous multipart results are terminal and require manual review.
 - Manual resend always resends the whole message and warns about duplicates.
 
+### Automatic MMS
+
+- Resolve a subscription-scoped `SmsManager` and re-read its carrier MMS
+  configuration immediately before every attempt.
+- Build an MMS `Send.req` PDU in app-private cache and call
+  `sendMultimediaMessage` with `locationUrl = null` and
+  `configOverrides = null`. Android selects the current subscription's APN,
+  MMSC, proxy, carrier app, and HTTP parameters; LaterText never stores AT&T,
+  T-Mobile, or Verizon endpoints.
+- Support one JPEG, PNG, or GIF attachment. Preserve a GIF only when it already
+  fits. Resize and JPEG-compress static images to the live maximum message and
+  image dimensions, with final encoded-PDU size validation.
+- Persist one sent-result callback. `Activity.RESULT_OK` means the MMSC/carrier
+  accepted the MMS; it is not proof of handset delivery.
+- The public MMS send API has no delivery `PendingIntent`, so persist delivery
+  as unavailable for that send. Never display `Delivered` for automatic MMS.
+- Treat a lost or ambiguous MMSC response as terminal duplicate risk. Retry only
+  errors known to occur before acceptance.
+- Android persists outgoing MMS into the system telephony provider for a
+  non-default SMS app; LaterText remains a companion with no inbox.
+
 ### Assisted text
 
 - Use `ACTION_SENDTO` with `smsto:` and optional body text.
@@ -111,9 +132,11 @@ or platform behavior.
 - Never infer the selected transport, user send action, carrier acceptance, or
   delivery.
 
-### Assisted media
+### Assisted media fallback
 
-- Preserve the original validated GIF/image bytes in app-private storage.
+- Preserve the original validated GIF/image bytes in app-private storage. Use
+  this path when carrier MMS is disabled, the format is unsupported, or an
+  animated GIF cannot fit without destructive conversion.
 - At due time, show an Action Required notification that opens a LaterText
   review surface.
 - The review surface displays recipient, text, attachment preview, and a Share
@@ -156,8 +179,10 @@ Rules:
 - Treat declared MIME type, filename, dimensions, and source package as
   untrusted.
 - Preserve animated bytes; do not decode and re-encode a GIF as a bitmap.
-- Show a static thumbnail plus GIF/animated badge if animated preview support is
-  not ready.
+- Show the complete image without cropping in composer, upcoming, detail, and
+  history previews. Play GIF/animated WebP frames while visible and stop their
+  drawables when the preview leaves the window; retain an animated badge for
+  accessibility and clear transport expectations.
 - Consume supported media and show actionable errors for invalid or oversized
   content. Return unrelated text content to the text field's default handler.
 - Support process death while copying by persisting a staged draft state.
@@ -190,7 +215,7 @@ Modules:
 :data:impl                  Room, Proto DataStore, files, outbox
 :platform:api               pure contracts for clock, alarms, transport, intents
 :platform:android           alarms, receivers, notifications, contacts, shares
-:transport:automatic        SmsManager text transport
+:transport:automatic        SmsManager SMS/MMS transport and MMS PDU/media preparation
 :transport:assisted         text/media messaging-app handoffs
 :feature:composer
 :feature:schedules          Upcoming, editor, detail
@@ -265,7 +290,8 @@ Notable v1 changes from the original design:
 - Attachments record an intake source:
   `KEYBOARD`, `CLIPBOARD`, `PHOTO_PICKER`, `SHARE`, or `DRAG_DROP`.
 - Send outcome and delivery outcome are separate.
-- Assisted media has its own handoff states and never becomes carrier-sent.
+- Assisted media has its own handoff states and never becomes carrier-sent;
+  automatic MMS uses durable attempt and callback states like automatic SMS.
 - The database is credential-protected only; no Direct Boot mirror exists in v1.
 
 Use stable string enums, UUID/ULID IDs, UTC epoch milliseconds for instants,
@@ -409,13 +435,14 @@ Owns scheduler portions of `:platform:android`:
 - Pause/missed/grace behavior
 - Fake alarm driver and reconciliation tests
 
-#### Agent E: Automatic SMS and SIM
+#### Agent E: Automatic SMS/MMS and SIM
 
 Owns `:transport:automatic` and telephony adapter surfaces:
 
 - Permission/readiness checks
 - Subscription resolution and revalidation
 - `divideMessage`, per-part PendingIntents, callbacks, aggregation
+- MMS PDU composition, live carrier limits, static-image resizing, and sent callback
 - Delivery timeout and separate delivery state
 - Safe retry classification integration
 - Partial/ambiguous terminal behavior
@@ -439,6 +466,8 @@ Wave 2 gate:
 - An alarm can claim a persisted occurrence exactly once.
 - Duplicate/out-of-order callbacks are harmless.
 - Simulated text SMS reaches sent/failed History states.
+- A generated MMS PDU round-trips through a parser, and static image preparation
+  respects injected carrier size and dimension limits.
 - A test GIF URI from Receive Content becomes a durable draft attachment.
 - Shared media remains readable after the source grant is revoked.
 - Assisted handoffs never project a sent/delivered result.
@@ -541,9 +570,11 @@ Root then builds, installs, and performs the acceptance flow on API 37.
 - Pause/resume and reboot before a due occurrence
 - Change device time zone and 12/24-hour preference
 - Open assisted text and share assisted media
+- Schedule a carrier-sized image MMS on a physical device and verify the sent
+  callback plus appearance in the default messaging app
 
-Real carrier delivery, MMS, dual-SIM hardware, and OEM battery behavior remain
-post-v1 physical-device validation items.
+Real MMS handset delivery reporting, dual-SIM hardware, roaming, and OEM battery
+behavior remain post-v1 physical-device validation items.
 
 ## 12. APK definition of done
 
@@ -558,20 +589,22 @@ The zero-to-one milestone is complete only when:
 - Contact Picker/manual recipient flows work.
 - Text and media shares create editable durable drafts.
 - A GIF selected from a compliant keyboard becomes a durable attachment.
-- Scheduled media triggers the assisted review/share flow and remains unverified.
+- Eligible scheduled media uses automatic MMS and reaches carrier-accepted
+  status; ineligible media uses assisted review/share and remains unverified.
 - Sent and delivery state remain separate throughout UI and storage.
 - Notifications, exact-alarm degradation, permissions, pause, delete, and SIM-loss
   states are represented honestly.
 - The composer and schedule editor work with the IME, compact height, landscape,
   and 200% font scale.
-- No GIPHY, automatic RCS, automatic MMS, Direct Boot, or Play-only promise leaks
+- No GIPHY, automatic RCS, Direct Boot, or Play-only promise leaks
   into v1 UI or settings.
 
 ## 13. Deferred backlog
 
 Deferred work must not be silently implemented by a feature agent:
 
-- Automatic MMS/PDU generation and real-carrier validation
+- Broader real-carrier MMS certification, MMS delivery-report ingestion, and
+  multiple-media/group MMS
 - Automatic or observable RCS
 - Built-in GIF search/provider integration
 - Direct Boot/device-protected scheduling

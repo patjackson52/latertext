@@ -29,6 +29,7 @@ import com.patjackson.latertext.data.api.OccurrenceState
 import com.patjackson.latertext.data.api.PartOutcome
 import com.patjackson.latertext.data.api.SendOutcome
 import com.patjackson.latertext.data.api.SettingsRepository
+import com.patjackson.latertext.data.api.TransportMode
 import com.patjackson.latertext.platform.api.AppClock
 import com.patjackson.latertext.platform.api.AppNotification
 import com.patjackson.latertext.platform.api.NotificationKind
@@ -80,8 +81,14 @@ class SmsCallbackProcessor(
         require(partIndex >= 0)
         val now = clock.now()
         val token = SmsCallbackToken.create(attemptId, partIndex, kind)
+        val transportMode = attempts.get(attemptId)?.attempt?.transportMode
+            ?: return SmsCallbackProcessResult.DuplicateOrExpired
         val partOutcome = when (kind) {
-            CallbackKind.SENT -> AndroidSmsResultMapper.sentPartOutcome(androidResultCode)
+            CallbackKind.SENT -> if (transportMode == TransportMode.AUTOMATIC_MMS) {
+                AndroidMmsResultMapper.sentPartOutcome(androidResultCode)
+            } else {
+                AndroidSmsResultMapper.sentPartOutcome(androidResultCode)
+            }
             CallbackKind.DELIVERED -> AndroidSmsResultMapper.deliveryPartOutcome(androidResultCode)
         }
         val bundle = attempts.applyCallback(
@@ -197,6 +204,8 @@ class SmsCallbackProcessor(
         occurrence: com.patjackson.latertext.data.api.OccurrenceRecord,
         now: Instant,
     ): SmsCallbackProcessResult {
+        val carrierAcceptanceIsNew = occurrence.sendOutcome != SendOutcome.SENT_TO_CARRIER
+        val previousDelivery = occurrence.deliveryOutcome
         val hasDeliveryTokens = bundle.callbackTokens.any { it.kind == CallbackKind.DELIVERED }
         val delivery = if (hasDeliveryTokens) reduced.deliveryOutcome else DomainDeliveryOutcome.NOT_REQUESTED
         attempts.updateAttempt(
@@ -239,9 +248,15 @@ class SmsCallbackProcessor(
             )
         ) return SmsCallbackProcessResult.Ignored("attempt_no_longer_active")
 
-        appendEvent(occurrence.id, bundle.attempt.id, "SMS_SENT_TO_CARRIER", eventAt)
+        if (carrierAcceptanceIsNew) {
+            appendEvent(occurrence.id, bundle.attempt.id, "SMS_SENT_TO_CARRIER", eventAt)
+        }
         val userSettings = settings.get()
-        if (userSettings.notificationsEnabled && userSettings.sendResultNotificationsEnabled) {
+        if (
+            carrierAcceptanceIsNew &&
+            userSettings.notificationsEnabled &&
+            userSettings.sendResultNotificationsEnabled
+        ) {
             notifications.publish(
                 AppNotification(
                     id = notificationId(occurrence.id, "sent"),
@@ -254,11 +269,17 @@ class SmsCallbackProcessor(
         }
         return when (delivery) {
             DomainDeliveryOutcome.DELIVERED -> {
-                publishDeliveryIfEnabled(occurrence.id, true)
+                if (previousDelivery != DeliveryOutcome.DELIVERED) {
+                    appendEvent(occurrence.id, bundle.attempt.id, "SMS_DELIVERED", eventAt)
+                    publishDeliveryIfEnabled(occurrence.id, true)
+                }
                 SmsCallbackProcessResult.DeliveryCompleted(bundle.attempt.id, true)
             }
             DomainDeliveryOutcome.FAILED -> {
-                publishDeliveryIfEnabled(occurrence.id, false)
+                if (previousDelivery != DeliveryOutcome.FAILED) {
+                    appendEvent(occurrence.id, bundle.attempt.id, "SMS_DELIVERY_FAILED", eventAt)
+                    publishDeliveryIfEnabled(occurrence.id, false)
+                }
                 SmsCallbackProcessResult.DeliveryCompleted(bundle.attempt.id, false)
             }
             else -> SmsCallbackProcessResult.CarrierAccepted(bundle.attempt.id)
@@ -390,8 +411,11 @@ class SmsCallbackProcessor(
             .filter { it.sendOutcome != PartOutcome.PENDING }
             .sortedWith(compareBy<AttemptPartRecord> { it.sentAtEpochMillis ?: Long.MAX_VALUE }.thenBy { it.partIndex })
             .forEach { part ->
-                val code = if (part.sendOutcome == PartOutcome.ACCEPTED) null
-                else AndroidSmsResultMapper.failureCode(part.sentResultCode)
+                val code = if (part.sendOutcome == PartOutcome.ACCEPTED) {
+                    null
+                } else {
+                    failureCode(bundle.attempt.transportMode, part.sentResultCode)
+                }
                 snapshot = attemptReducer.reduce(
                     snapshot,
                     AttemptEvent.SentPartCallback(
@@ -435,7 +459,14 @@ class SmsCallbackProcessor(
 
     private fun firstFailureCode(bundle: AttemptBundle): SmsFailureCode? = bundle.parts
         .firstOrNull { it.sendOutcome != PartOutcome.PENDING && it.sendOutcome != PartOutcome.ACCEPTED }
-        ?.let { AndroidSmsResultMapper.failureCode(it.sentResultCode) }
+        ?.let { failureCode(bundle.attempt.transportMode, it.sentResultCode) }
+
+    private fun failureCode(transportMode: TransportMode, resultCode: Int?): SmsFailureCode =
+        if (transportMode == TransportMode.AUTOMATIC_MMS) {
+            AndroidMmsResultMapper.failureCode(resultCode)
+        } else {
+            AndroidSmsResultMapper.failureCode(resultCode)
+        }
 
     private suspend fun publishFailureIfEnabled(occurrenceId: String, duplicateRisk: Boolean) {
         val userSettings = settings.get()
@@ -542,6 +573,40 @@ internal object AndroidSmsResultMapper {
         SmsManager.RESULT_ERROR_NULL_PDU -> SmsFailureCode.NULL_PDU
         SmsManager.RESULT_RIL_MODEM_ERR -> SmsFailureCode.MODEM_ERROR
         SmsManager.RESULT_ERROR_GENERIC_FAILURE -> SmsFailureCode.GENERIC_FAILURE
+        else -> SmsFailureCode.UNKNOWN
+    }
+}
+
+internal object AndroidMmsResultMapper {
+    fun sentPartOutcome(resultCode: Int): PartOutcome =
+        if (resultCode == Activity.RESULT_OK) PartOutcome.ACCEPTED else PartOutcome.FAILED
+
+    /**
+     * HTTP/I/O/unspecified failures are ambiguous: the MMSC might have accepted the request
+     * before the response was lost. They must never trigger an automatic duplicate resend.
+     */
+    fun failureCode(resultCode: Int?): SmsFailureCode = when (resultCode) {
+        SmsManager.MMS_ERROR_UNABLE_CONNECT_MMS,
+        SmsManager.MMS_ERROR_NO_DATA_NETWORK,
+        -> SmsFailureCode.NO_SERVICE
+
+        SmsManager.MMS_ERROR_RETRY -> SmsFailureCode.NETWORK_ERROR
+        SmsManager.MMS_ERROR_INVALID_APN,
+        SmsManager.MMS_ERROR_CONFIGURATION_ERROR,
+        -> SmsFailureCode.INVALID_ARGUMENTS
+
+        SmsManager.MMS_ERROR_INVALID_SUBSCRIPTION_ID,
+        SmsManager.MMS_ERROR_INACTIVE_SUBSCRIPTION,
+        -> SmsFailureCode.SIM_UNAVAILABLE
+
+        SmsManager.MMS_ERROR_DATA_DISABLED,
+        SmsManager.MMS_ERROR_MMS_DISABLED_BY_CARRIER,
+        -> SmsFailureCode.PERMISSION_DENIED
+
+        SmsManager.MMS_ERROR_HTTP_FAILURE,
+        SmsManager.MMS_ERROR_IO_ERROR,
+        SmsManager.MMS_ERROR_UNSPECIFIED,
+        -> SmsFailureCode.UNKNOWN
         else -> SmsFailureCode.UNKNOWN
     }
 }

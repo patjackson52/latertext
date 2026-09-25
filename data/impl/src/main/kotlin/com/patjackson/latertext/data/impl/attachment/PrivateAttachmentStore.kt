@@ -211,9 +211,7 @@ private object MediaInspector {
             }
         }
         return when {
-            header.isGif() -> MediaInspection(
-                "image/gif", "gif", header.u16le(6), header.u16le(8), true,
-            )
+            header.isGif() -> inspectGif(file, header)
             header.isPng() -> MediaInspection(
                 "image/png", "png", header.i32be(16), header.i32be(20), false,
             )
@@ -228,6 +226,53 @@ private object MediaInspector {
                 throw InvalidAttachmentException("Image height is invalid")
             }
         }
+    }
+
+    private fun inspectGif(file: File, header: ByteArray): MediaInspection {
+        val frameCount = FileInputStream(file).buffered().use { input ->
+            val logicalScreen = ByteArray(GIF_HEADER_AND_SCREEN_BYTES)
+            input.readFully(logicalScreen)
+            val globalColorTableBytes = colorTableByteCount(logicalScreen[10].toInt() and 0xff)
+            input.skipFully(globalColorTableBytes.toLong())
+
+            var frames = 0
+            while (true) {
+                when (input.read()) {
+                    GIF_IMAGE_SEPARATOR -> {
+                        val descriptor = ByteArray(GIF_IMAGE_DESCRIPTOR_BYTES)
+                        input.readFully(descriptor)
+                        input.skipFully(colorTableByteCount(descriptor[8].toInt() and 0xff).toLong())
+                        if (input.read() < 0) throw InvalidAttachmentException("GIF image data is missing")
+                        input.skipGifSubBlocks()
+                        frames++
+                    }
+
+                    GIF_EXTENSION_INTRODUCER -> {
+                        if (input.read() < 0) throw InvalidAttachmentException("GIF extension is truncated")
+                        input.skipGifSubBlocks()
+                    }
+
+                    GIF_TRAILER -> break
+                    -1 -> throw InvalidAttachmentException("GIF trailer is missing")
+                    else -> throw InvalidAttachmentException("GIF block structure is malformed")
+                }
+            }
+            if (frames == 0) throw InvalidAttachmentException("GIF contains no image frames")
+            frames
+        }
+        return MediaInspection(
+            mimeType = "image/gif",
+            extension = "gif",
+            widthPixels = header.u16le(6),
+            heightPixels = header.u16le(8),
+            isAnimated = frameCount > 1,
+        )
+    }
+
+    private fun colorTableByteCount(packed: Int): Int = if ((packed and 0x80) != 0) {
+        3 * (1 shl ((packed and 0x07) + 1))
+    } else {
+        0
     }
 
     private fun inspectJpeg(file: File): MediaInspection {
@@ -356,6 +401,24 @@ private object MediaInspector {
         }
     }
 
+    private fun InputStream.readFully(target: ByteArray) {
+        var offset = 0
+        while (offset < target.size) {
+            val count = read(target, offset, target.size - offset)
+            if (count < 0) throw InvalidAttachmentException("Unexpected end of image")
+            offset += count
+        }
+    }
+
+    private fun InputStream.skipGifSubBlocks() {
+        while (true) {
+            val size = read()
+            if (size < 0) throw InvalidAttachmentException("GIF data is truncated")
+            if (size == 0) return
+            skipFully(size.toLong())
+        }
+    }
+
     private fun File.readBytesUpTo(limit: Int): ByteArray = FileInputStream(this).use { input ->
         val output = java.io.ByteArrayOutputStream(minOf(length(), limit.toLong()).toInt())
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -373,4 +436,9 @@ private object MediaInspector {
         0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
     )
     private const val MAX_WEBP_SCAN_BYTES = 1024 * 1024
+    private const val GIF_HEADER_AND_SCREEN_BYTES = 13
+    private const val GIF_IMAGE_DESCRIPTOR_BYTES = 9
+    private const val GIF_IMAGE_SEPARATOR = 0x2c
+    private const val GIF_EXTENSION_INTRODUCER = 0x21
+    private const val GIF_TRAILER = 0x3b
 }

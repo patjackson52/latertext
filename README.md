@@ -1,14 +1,16 @@
 # LaterText
 
-LaterText is a developer-sideloadable Android app for dependable one-to-one message scheduling. It supports automatic text SMS, recurring schedules, randomized timing, share-sheet and keyboard media intake, and honest send and delivery status.
+LaterText is a developer-sideloadable Android app for dependable one-to-one message scheduling. It supports automatic SMS and single-image MMS, recurring schedules, randomized timing, share-sheet and keyboard media intake, and honest send and delivery status.
 
 ## What works
 
 - Schedule a text SMS once, daily, weekly, or monthly, with optional bounded random jitter.
 - Send text SMS automatically with multipart status tracking, durable retries for safe failures, and separate carrier-send and delivery outcomes.
+- Send one JPEG, PNG, or carrier-sized GIF as MMS through Android's subscription-scoped MMS service. Static photos are resized and compressed to the active carrier's live limits; oversized GIFs fall back to assisted sharing so animation is never silently destroyed.
 - Select one phone number with Android's privacy-preserving contact picker; no broad contacts permission is required.
 - Receive text, links, and one image or GIF from the Android share sheet, `PROCESS_TEXT`, clipboard, drag-and-drop, or a compatible keyboard such as Gboard.
-- Hand images, GIFs, or RCS-like content to the default messaging app with the recipient and content prepared. Android does not expose a public API for unattended RCS/MMS sending or verification, so LaterText reports these sends as user-action-required and unverified.
+- Preview the complete image or meme without cropping in the composer, upcoming list, schedule detail, and history; animated GIF and WebP previews play while visible.
+- Hand unsupported or over-limit media and RCS-like content to the default messaging app with the recipient and content prepared. Android does not expose a public API for unattended RCS, so assisted sends remain user-action-required and unverified.
 - Open a recipient's conversation in the default messaging app.
 - Recover schedules after reboot, package replacement, wall-clock/time-zone changes, loss of exact-alarm access, or process death.
 - Keep schedules, occurrences, attempts, callback tokens, drafts, settings, and imported attachments in durable app-private storage.
@@ -25,7 +27,7 @@ Prerequisites are JDK 17 and an Android SDK containing API 37. The repository in
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The debug application ID is `com.patjackson.latertext.debug`. On first launch, complete the in-app setup for SMS, notifications, and exact alarms. A device with telephony service is required for automatic SMS; assisted messaging remains available without it.
+The debug application ID is `com.patjackson.latertext.debug`. On first launch, complete the in-app setup for SMS, notifications, and exact alarms. A device with telephony messaging service is required for automatic SMS/MMS; assisted messaging remains available without it. MMS uses Android's active-subscription APN/MMSC configuration—LaterText does not ship carrier URLs or credentials.
 
 Run the local verification suite with:
 

@@ -14,6 +14,7 @@ enum class ScheduleValidationIssue {
     JITTER_CAN_REORDER_OCCURRENCES,
     ASK_ME_REQUIRES_ACTION_NOTIFICATIONS,
     AUTOMATIC_SMS_REQUIRES_TEXT_ONLY,
+    AUTOMATIC_MMS_REQUIRES_ATTACHMENT,
     ASSISTED_MEDIA_REQUIRES_ATTACHMENT,
 }
 
@@ -51,6 +52,9 @@ class ScheduleDefinitionValidator(
         }
         if (configuration.transport == TransportKind.AUTOMATIC_SMS && content.hasMedia) {
             issues += ScheduleValidationIssue.AUTOMATIC_SMS_REQUIRES_TEXT_ONLY
+        }
+        if (configuration.transport == TransportKind.AUTOMATIC_MMS && !content.hasMedia) {
+            issues += ScheduleValidationIssue.AUTOMATIC_MMS_REQUIRES_ATTACHMENT
         }
         if (configuration.transport == TransportKind.ASSISTED_MEDIA && !content.hasMedia) {
             issues += ScheduleValidationIssue.ASSISTED_MEDIA_REQUIRES_ATTACHMENT

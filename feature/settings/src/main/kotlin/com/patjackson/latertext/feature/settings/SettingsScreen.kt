@@ -34,12 +34,14 @@ data class SettingsUiState(
     val deliveryNotifications: Boolean = false,
     val globallyPaused: Boolean = false,
     val simLabel: String = "System default",
+    val smsHistoryPermission: Boolean = false,
 )
 
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
     onRequestSmsPermission: () -> Unit,
+    onRequestSmsHistoryPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onOpenExactAlarmSettings: () -> Unit,
     onNotifications: (Boolean) -> Unit,
@@ -63,6 +65,17 @@ fun SettingsScreen(
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ReadinessRow("SMS permission", state.smsPermission)
                 if (!state.smsPermission) Button(onClick = onRequestSmsPermission) { Text("Allow SMS") }
+                ReadinessRow(
+                    "SMS history verification",
+                    state.smsHistoryPermission,
+                    required = false,
+                    unavailableStatus = "Optional · enables recovery when Android callbacks are lost",
+                )
+                if (!state.smsHistoryPermission) {
+                    OutlinedButton(onClick = onRequestSmsHistoryPermission) {
+                        Text("Allow SMS verification")
+                    }
+                }
                 ReadinessRow("Notifications", state.notificationsPermission)
                 if (!state.notificationsPermission) {
                     Button(onClick = onRequestNotificationPermission) { Text("Allow notifications") }
@@ -106,7 +119,8 @@ fun SettingsScreen(
 
         Text("Privacy", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Messages, recipients, and attachments stay on this device and are excluded from cloud backup.",
+            "Messages, recipients, and attachments stay on this device and are excluded from cloud backup. " +
+                "When allowed, LaterText checks only matching outgoing SMS records to recover send and delivery status.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Text("LaterText 0.1.0-dev", style = MaterialTheme.typography.bodySmall)
@@ -114,7 +128,12 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun ReadinessRow(label: String, ready: Boolean, required: Boolean = true) {
+private fun ReadinessRow(
+    label: String,
+    ready: Boolean,
+    required: Boolean = true,
+    unavailableStatus: String? = null,
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -123,7 +142,7 @@ private fun ReadinessRow(label: String, ready: Boolean, required: Boolean = true
         val status = when {
             ready -> "Ready"
             required -> "Needs attention"
-            else -> "Optional · Android may delay scheduled sends"
+            else -> unavailableStatus ?: "Optional · Android may delay scheduled sends"
         }
         Text(
             status,

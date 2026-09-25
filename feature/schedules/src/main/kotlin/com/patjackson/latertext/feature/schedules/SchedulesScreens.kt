@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.patjackson.latertext.core.designsystem.AdaptiveActionRow
+import com.patjackson.latertext.core.designsystem.MessageMediaPreview
 import com.patjackson.latertext.core.model.MissedPolicy
 import com.patjackson.latertext.core.model.MonthlyDayPolicy
 import com.patjackson.latertext.core.model.RecurrenceFrequency
@@ -60,6 +61,11 @@ data class UpcomingScheduleUi(
     val attachmentPath: String? = null,
     val attachmentMimeType: String? = null,
     val recipientAddress: String? = null,
+    val deliveryStatus: String? = null,
+    val canSendNow: Boolean = true,
+    val attachmentWidthPixels: Int? = null,
+    val attachmentHeightPixels: Int? = null,
+    val attachmentIsAnimated: Boolean = false,
 )
 
 @Composable
@@ -118,21 +124,6 @@ fun UpcomingScreen(
                     }
                 }
             }
-            if (schedules.isEmpty()) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 64.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text("Plan a thoughtful message", style = MaterialTheme.typography.titleLarge)
-                        Text("Create it now and LaterText will remember when to send it.")
-                        Button(onClick = onNewMessage) { Text("Create a message") }
-                    }
-                }
-            }
             items(schedules, key = { it.id }) { schedule ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -153,11 +144,23 @@ fun UpcomingScreen(
                             } else MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium,
                         )
-                        Text(
-                            schedule.messagePreview,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        schedule.attachmentPath?.let { path ->
+                            MessageMediaPreview(
+                                absolutePath = path,
+                                mimeType = schedule.attachmentMimeType,
+                                isAnimated = schedule.attachmentIsAnimated,
+                                widthPixels = schedule.attachmentWidthPixels,
+                                heightPixels = schedule.attachmentHeightPixels,
+                                maximumHeight = 260.dp,
+                            )
+                        }
+                        if (schedule.attachmentPath == null || schedule.messagePreview != "Media message") {
+                            Text(
+                                schedule.messagePreview,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                         Text(schedule.timing, style = MaterialTheme.typography.bodySmall)
                         if (schedule.outcomeUnverified) {
                             Text(
@@ -384,7 +387,19 @@ fun ScheduleDetailScreen(
     ) {
         OutlinedButton(onClick = onBack) { Text("Back") }
         Text(schedule.recipient, style = MaterialTheme.typography.headlineSmall)
-        Text(schedule.messagePreview, style = MaterialTheme.typography.bodyLarge)
+        schedule.attachmentPath?.let { path ->
+            MessageMediaPreview(
+                absolutePath = path,
+                mimeType = schedule.attachmentMimeType,
+                isAnimated = schedule.attachmentIsAnimated,
+                widthPixels = schedule.attachmentWidthPixels,
+                heightPixels = schedule.attachmentHeightPixels,
+                maximumHeight = 520.dp,
+            )
+        }
+        if (schedule.attachmentPath == null || schedule.messagePreview != "Media message") {
+            Text(schedule.messagePreview, style = MaterialTheme.typography.bodyLarge)
+        }
         Text(schedule.timing)
         Text(
             schedule.status,
@@ -392,6 +407,16 @@ fun ScheduleDetailScreen(
                 contentDescription = "Schedule status: ${schedule.status}"
             },
         )
+        schedule.deliveryStatus?.let { delivery ->
+            Text(
+                "Delivery: $delivery",
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = "Delivery status: $delivery"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (schedule.assistedMedia || schedule.outcomeUnverified) {
             Text(
                 "LaterText can prepare and share this media, but cannot verify that it was sent or delivered.",
@@ -399,8 +424,10 @@ fun ScheduleDetailScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Button(onClick = onSendNow, modifier = Modifier.fillMaxWidth()) {
-            Text(if (schedule.assistedMedia) "Review & share now" else "Send now")
+        if (schedule.canSendNow) {
+            Button(onClick = onSendNow, modifier = Modifier.fillMaxWidth()) {
+                Text(if (schedule.assistedMedia) "Review & share now" else "Send now")
+            }
         }
         OutlinedButton(onClick = onPauseResume, modifier = Modifier.fillMaxWidth()) {
             Text(if (schedule.paused) "Resume schedule" else "Pause schedule")

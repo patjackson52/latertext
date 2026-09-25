@@ -8,16 +8,22 @@ import com.patjackson.latertext.data.api.AttachmentInput
 import com.patjackson.latertext.data.api.AttachmentIntakeSource
 import com.patjackson.latertext.data.api.AttachmentStorageClass
 import com.patjackson.latertext.data.api.AttachmentWriteRequest
+import com.patjackson.latertext.data.api.AttemptBundle
+import com.patjackson.latertext.data.api.AttemptPartRecord
 import com.patjackson.latertext.data.api.ContentRevisionRecord
+import com.patjackson.latertext.data.api.CorroboratedAttemptProjection
 import com.patjackson.latertext.data.api.CreateScheduleCommand
+import com.patjackson.latertext.data.api.DeliveryOutcome
 import com.patjackson.latertext.data.api.DstResolution
 import com.patjackson.latertext.data.api.EndCondition
 import com.patjackson.latertext.data.api.ExecutionClaimResult
 import com.patjackson.latertext.data.api.MissedPolicy
 import com.patjackson.latertext.data.api.MonthlyEdgePolicy
 import com.patjackson.latertext.data.api.OccurrenceRecord
+import com.patjackson.latertext.data.api.OccurrenceEventRecord
 import com.patjackson.latertext.data.api.OccurrenceState
 import com.patjackson.latertext.data.api.OutboxState
+import com.patjackson.latertext.data.api.PartOutcome
 import com.patjackson.latertext.data.api.RecipientEndpointRecord
 import com.patjackson.latertext.data.api.RecipientSource
 import com.patjackson.latertext.data.api.RecurrenceFrequency
@@ -25,6 +31,7 @@ import com.patjackson.latertext.data.api.RuleRevisionRecord
 import com.patjackson.latertext.data.api.ScheduleRecord
 import com.patjackson.latertext.data.api.ScheduleState
 import com.patjackson.latertext.data.api.SendOutcome
+import com.patjackson.latertext.data.api.SendAttemptRecord
 import com.patjackson.latertext.data.api.SideEffectOutboxRecord
 import com.patjackson.latertext.data.api.TransportMode
 import com.patjackson.latertext.data.api.ZonePolicy
@@ -35,9 +42,16 @@ import com.patjackson.latertext.data.impl.repository.RoomOccurrenceRepository
 import com.patjackson.latertext.data.impl.repository.RoomOccurrenceExecutionRepository
 import com.patjackson.latertext.data.impl.repository.RoomOutboxRepository
 import com.patjackson.latertext.data.impl.repository.RoomScheduleRepository
+import com.patjackson.latertext.data.impl.repository.RoomAttemptRepository
 import java.io.ByteArrayInputStream
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -66,6 +80,20 @@ class RoomPersistenceTest {
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun scheduleRepositoryEmitsRoomInvalidationsForExecutionState() = runBlocking {
+        val now = 1_800_000_000_000L
+        val scheduleRepository = RoomScheduleRepository(database, attachments)
+        val emissions = async(Dispatchers.Default) {
+            withTimeout(5_000) { scheduleRepository.observeChanges().take(2).toList() }
+        }
+        delay(100)
+
+        scheduleRepository.create(textScheduleCommand(now))
+
+        assertEquals(2, emissions.await().size)
     }
 
     @Test
@@ -178,6 +206,104 @@ class RoomPersistenceTest {
             RoomOccurrenceRepository(database).get("occurrence-1")?.sendOutcome,
         )
         assertEquals(0, execution.attemptCount("occurrence-1"))
+    }
+
+    @Test
+    fun staleProviderProjectionCannotRegressANewerCallback() = runBlocking {
+        val now = 1_800_000_000_000L
+        val schedules = RoomScheduleRepository(database, attachments)
+        val executions = RoomOccurrenceExecutionRepository(database)
+        val attempts = RoomAttemptRepository(database)
+        schedules.create(textScheduleCommand(now))
+        val selected = executions.selectAlarm("occurrence-1", expectedGeneration = 0, now)
+        assertTrue(
+            executions.claimExpected(
+                "occurrence-1",
+                requireNotNull(selected.current).generation,
+                "worker",
+                now,
+                now + 60_000,
+            ) is ExecutionClaimResult.Claimed,
+        )
+        assertTrue(
+            executions.transitionClaimed(
+                occurrenceId = "occurrence-1",
+                owner = "worker",
+                newState = OccurrenceState.SENDING,
+                sendOutcome = SendOutcome.PENDING,
+                activeAttemptId = "attempt-race",
+                nowEpochMillis = now + 1,
+            ),
+        )
+        val initialAttempt = SendAttemptRecord(
+            id = "attempt-race",
+            occurrenceId = "occurrence-1",
+            attemptNumber = 1,
+            transportMode = TransportMode.AUTOMATIC_SMS,
+            sendOutcome = SendOutcome.PENDING,
+            deliveryOutcome = DeliveryOutcome.PENDING,
+            failureCode = null,
+            failureDetail = null,
+            startedAtEpochMillis = now,
+            finishedAtEpochMillis = null,
+            deliveryDeadlineAtEpochMillis = now + 86_400_000,
+        )
+        val initialPart = AttemptPartRecord(
+            attemptId = initialAttempt.id,
+            partIndex = 0,
+            totalParts = 1,
+            sendOutcome = PartOutcome.PENDING,
+            deliveryOutcome = PartOutcome.PENDING,
+            sentResultCode = null,
+            deliveryResultCode = null,
+            sentAtEpochMillis = null,
+            deliveredAtEpochMillis = null,
+        )
+        attempts.create(AttemptBundle(initialAttempt, listOf(initialPart), emptyList()))
+
+        val callbackAttempt = initialAttempt.copy(
+            sendOutcome = SendOutcome.SENT_TO_CARRIER,
+            deliveryOutcome = DeliveryOutcome.DELIVERED,
+            finishedAtEpochMillis = now + 2,
+        )
+        val callbackPart = initialPart.copy(
+            sendOutcome = PartOutcome.ACCEPTED,
+            deliveryOutcome = PartOutcome.ACCEPTED,
+            sentAtEpochMillis = now + 2,
+            deliveredAtEpochMillis = now + 2,
+        )
+        assertTrue(attempts.updatePart(callbackPart))
+        assertTrue(attempts.updateAttempt(callbackAttempt))
+
+        val staleProviderApplied = executions.applyCorroboratedProjection(
+            CorroboratedAttemptProjection(
+                expectedOccurrenceStates = setOf(OccurrenceState.SENDING),
+                expectedAttempt = initialAttempt,
+                expectedParts = listOf(initialPart),
+                occurrenceState = OccurrenceState.SENT_TO_CARRIER,
+                sendOutcome = SendOutcome.SENT_TO_CARRIER,
+                deliveryOutcome = DeliveryOutcome.PENDING,
+                attempt = initialAttempt.copy(
+                    sendOutcome = SendOutcome.SENT_TO_CARRIER,
+                    providerMessageId = 42,
+                ),
+                parts = listOf(initialPart.copy(sendOutcome = PartOutcome.ACCEPTED)),
+                event = OccurrenceEventRecord(
+                    id = "event-stale-provider",
+                    occurrenceId = "occurrence-1",
+                    attemptId = initialAttempt.id,
+                    type = "SMS_PROVIDER_RECONCILED",
+                    detailJson = null,
+                    happenedAtEpochMillis = now + 3,
+                    createdAtEpochMillis = now + 3,
+                ),
+            ),
+        )
+
+        assertFalse(staleProviderApplied)
+        assertEquals(DeliveryOutcome.DELIVERED, attempts.get(initialAttempt.id)?.attempt?.deliveryOutcome)
+        assertEquals(PartOutcome.ACCEPTED, attempts.get(initialAttempt.id)?.parts?.single()?.deliveryOutcome)
+        assertTrue(database.occurrenceEventDao().listForOccurrence("occurrence-1").isEmpty())
     }
 
     @Test

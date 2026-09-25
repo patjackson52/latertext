@@ -28,10 +28,14 @@ import com.patjackson.latertext.data.api.SideEffectOutboxRecord
 import com.patjackson.latertext.data.api.UpdateScheduleContentCommand
 import com.patjackson.latertext.data.api.UpdateScheduleRuleCommand
 import com.patjackson.latertext.data.impl.db.AttachmentAssetEntity
+import com.patjackson.latertext.data.impl.db.ContentAttachmentEntity
+import com.patjackson.latertext.data.impl.db.ContentRevisionEntity
 import com.patjackson.latertext.data.impl.db.LaterTextDatabase
 import com.patjackson.latertext.data.impl.db.ScheduleAggregate
 import com.patjackson.latertext.data.impl.db.toEntity
 import com.patjackson.latertext.data.impl.db.toRecord
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class RoomScheduleRepository(
     private val database: LaterTextDatabase,
@@ -143,7 +147,7 @@ class RoomScheduleRepository(
         require(limit > 0)
         return database.withTransaction {
             database.scheduleDao().listUpcoming(limit).map { aggregate ->
-                aggregate.toRecord(loadActiveAttachment(aggregate))
+                aggregate.toRecord(loadAttachments(aggregate))
             }
         }
     }
@@ -152,10 +156,27 @@ class RoomScheduleRepository(
         require(limit > 0)
         return database.withTransaction {
             database.scheduleDao().listAll(limit).map { aggregate ->
-                aggregate.toRecord(loadActiveAttachment(aggregate))
+                aggregate.toRecord(loadAttachments(aggregate))
             }
         }
     }
+
+    override fun observeChanges(): Flow<Unit> = database.invalidationTracker.createFlow(
+        "schedule",
+        "recipient_endpoint",
+        "content_revision",
+        "content_attachment",
+        "attachment_asset",
+        "occurrence",
+        "send_attempt",
+        "attempt_part",
+        "callback_token",
+        "occurrence_event",
+        emitInitialState = true,
+    ).map { Unit }
+
+    override suspend fun contentRevision(contentRevisionId: String) =
+        database.contentDao().get(contentRevisionId)?.toRecord()
 
     override suspend fun setPaused(
         scheduleId: String,
@@ -196,12 +217,22 @@ class RoomScheduleRepository(
 
     private suspend fun loadGraph(scheduleId: String): ScheduleGraph? =
         database.scheduleDao().getAggregate(scheduleId)?.let { aggregate ->
-            aggregate.toRecord(loadActiveAttachment(aggregate))
+            aggregate.toRecord(loadAttachments(aggregate))
         }
 
-    private suspend fun loadActiveAttachment(aggregate: ScheduleAggregate): AttachmentAssetEntity? {
-        val contentId = aggregate.schedule.activeContentRevisionId ?: return null
-        return database.contentDao().getWithAttachment(contentId)?.attachments?.singleOrNull()
+    private suspend fun loadAttachments(
+        aggregate: ScheduleAggregate,
+    ): Map<String, AttachmentAssetEntity> {
+        val contentIds = aggregate.contentRevisions.map(ContentRevisionEntity::id)
+        if (contentIds.isEmpty()) return emptyMap()
+        val links = database.contentDao().attachmentLinks(contentIds)
+        if (links.isEmpty()) return emptyMap()
+        val assetsById = database.attachmentAssetDao().getAll(
+            links.map(ContentAttachmentEntity::attachmentAssetId).distinct(),
+        ).associateBy(AttachmentAssetEntity::id)
+        return links.mapNotNull { link ->
+            assetsById[link.attachmentAssetId]?.let { link.contentRevisionId to it }
+        }.toMap()
     }
 
     private fun validateCreate(command: CreateScheduleCommand) {

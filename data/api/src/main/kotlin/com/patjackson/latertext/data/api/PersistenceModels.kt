@@ -8,7 +8,7 @@ enum class RecipientSource { MANUAL, CONTACT_PICKER, LEGACY_PHONE_PICKER, SHARE 
 
 enum class ScheduleState { ACTIVE, PAUSED, NEEDS_ATTENTION, COMPLETED, CANCELLED, DELETED }
 
-enum class TransportMode { AUTOMATIC_SMS, ASSISTED_TEXT, ASSISTED_MEDIA }
+enum class TransportMode { AUTOMATIC_SMS, AUTOMATIC_MMS, ASSISTED_TEXT, ASSISTED_MEDIA }
 
 enum class AttachmentIntakeSource { KEYBOARD, CLIPBOARD, PHOTO_PICKER, SHARE, DRAG_DROP }
 
@@ -194,6 +194,11 @@ data class SendAttemptRecord(
     val startedAtEpochMillis: Long,
     val finishedAtEpochMillis: Long?,
     val deliveryDeadlineAtEpochMillis: Long?,
+    val subscriptionId: Int? = null,
+    val providerMessageId: Long? = null,
+    val providerStatus: Int? = null,
+    val providerErrorCode: Int? = null,
+    val providerObservedAtEpochMillis: Long? = null,
 )
 
 data class AttemptPartRecord(
@@ -292,4 +297,11 @@ data class ScheduleGraph(
     val activeAttachment: AttachmentAssetRecord?,
     val activeRule: RuleRevisionRecord?,
     val occurrences: List<OccurrenceRecord>,
+    val contentRevisions: List<ContentRevisionRecord> = activeContent?.let(::listOf).orEmpty(),
+    val attachmentsByContentRevisionId: Map<String, AttachmentAssetRecord> =
+        if (activeContent != null && activeAttachment != null) {
+            mapOf(activeContent.id to activeAttachment)
+        } else {
+            emptyMap()
+        },
 )

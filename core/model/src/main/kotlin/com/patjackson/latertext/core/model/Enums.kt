@@ -83,7 +83,7 @@ enum class SendOutcome {
 
 enum class DeliveryOutcome { NOT_REQUESTED, PENDING, DELIVERED, FAILED, UNAVAILABLE }
 
-enum class TransportKind { AUTOMATIC_SMS, ASSISTED_TEXT, ASSISTED_MEDIA }
+enum class TransportKind { AUTOMATIC_SMS, AUTOMATIC_MMS, ASSISTED_TEXT, ASSISTED_MEDIA }
 
 enum class AssistedHandoffState {
     READY_FOR_USER,

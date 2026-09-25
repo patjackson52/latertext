@@ -14,8 +14,14 @@ import com.patjackson.latertext.platform.android.execution.ExecutionRecoveryCoor
 import com.patjackson.latertext.platform.android.execution.ExecutionWatchdogScheduler
 import com.patjackson.latertext.platform.android.execution.OccurrenceMaterializationCoordinator
 import com.patjackson.latertext.platform.android.execution.SmsCallbackProcessor
+import com.patjackson.latertext.platform.android.execution.AndroidSmsProviderReader
+import com.patjackson.latertext.platform.android.execution.SmsAttemptWorkScheduler
+import com.patjackson.latertext.platform.android.execution.SmsProviderChangeObserver
+import com.patjackson.latertext.platform.android.execution.SmsProviderReader
+import com.patjackson.latertext.platform.android.execution.SmsProviderReconciler
 import com.patjackson.latertext.platform.android.sharing.RecipientShareShortcutPublisher
 import com.patjackson.latertext.data.api.AttemptRepository
+import com.patjackson.latertext.data.api.AttachmentRepository
 import com.patjackson.latertext.data.api.OccurrenceExecutionRepository
 import com.patjackson.latertext.data.api.OccurrenceRepository
 import com.patjackson.latertext.data.api.ScheduleRepository
@@ -62,6 +68,7 @@ object AppBindingsModule {
         occurrences: OccurrenceRepository,
         executions: OccurrenceExecutionRepository,
         attempts: AttemptRepository,
+        attachments: AttachmentRepository,
         settings: SettingsRepository,
         readiness: ReadinessGateway,
         subscriptions: SubscriptionGateway,
@@ -72,6 +79,7 @@ object AppBindingsModule {
         occurrences,
         executions,
         attempts,
+        attachments,
         settings,
         readiness,
         subscriptions,
@@ -104,6 +112,7 @@ object AppBindingsModule {
     fun executionRecoveryCoordinator(
         schedules: ScheduleRepository,
         occurrences: OccurrenceRepository,
+        attempts: AttemptRepository,
         dueProcessor: DueOccurrenceProcessor,
         callbackProcessor: SmsCallbackProcessor,
         alarmCoordinator: AlarmCoordinator,
@@ -111,9 +120,12 @@ object AppBindingsModule {
         notifications: NotificationPublisher,
         clock: AppClock,
         materialization: OccurrenceMaterializationCoordinator,
+        providerReconciler: SmsProviderReconciler,
+        attemptWorkScheduler: SmsAttemptWorkScheduler,
     ): ExecutionRecoveryCoordinator = ExecutionRecoveryCoordinator(
         schedules,
         occurrences,
+        attempts,
         dueProcessor,
         callbackProcessor,
         alarmCoordinator,
@@ -121,6 +133,8 @@ object AppBindingsModule {
         notifications,
         clock,
         materialization,
+        providerReconciler,
+        attemptWorkScheduler,
     )
 
     @Provides
@@ -145,6 +159,52 @@ object AppBindingsModule {
 
     @Provides
     @Singleton
+    fun smsAttemptWorkScheduler(
+        @ApplicationContext context: Context,
+    ): SmsAttemptWorkScheduler = SmsAttemptWorkScheduler(WorkManager.getInstance(context))
+
+    @Provides
+    @Singleton
+    fun smsProviderReader(
+        @ApplicationContext context: Context,
+    ): SmsProviderReader = AndroidSmsProviderReader(context)
+
+    @Provides
+    @Singleton
+    fun smsProviderReconciler(
+        @ApplicationContext context: Context,
+        reader: SmsProviderReader,
+        schedules: ScheduleRepository,
+        occurrences: OccurrenceRepository,
+        executions: OccurrenceExecutionRepository,
+        attempts: AttemptRepository,
+        settings: SettingsRepository,
+        notifications: NotificationPublisher,
+        clock: AppClock,
+        workScheduler: SmsAttemptWorkScheduler,
+    ): SmsProviderReconciler = SmsProviderReconciler(
+        context.packageName,
+        reader,
+        schedules,
+        occurrences,
+        executions,
+        attempts,
+        settings,
+        notifications,
+        clock,
+        workScheduler,
+    )
+
+    @Provides
+    @Singleton
+    fun smsProviderChangeObserver(
+        @ApplicationContext context: Context,
+        reader: SmsProviderReader,
+        reconciler: SmsProviderReconciler,
+    ): SmsProviderChangeObserver = SmsProviderChangeObserver(context, reader, reconciler)
+
+    @Provides
+    @Singleton
     fun recipientShareShortcutPublisher(
         @ApplicationContext context: Context,
     ): RecipientShareShortcutPublisher = RecipientShareShortcutPublisher(
@@ -156,7 +216,7 @@ object AppBindingsModule {
     @Provides
     @Singleton
     fun smsGateway(@ApplicationContext context: Context): AutomaticSmsGateway =
-        AndroidAutomaticSmsGateway(context)
+        AndroidAutomaticSmsGateway(context, SmsCallbackDispatchReceiver::class.java.name)
 
     @Provides
     @Singleton

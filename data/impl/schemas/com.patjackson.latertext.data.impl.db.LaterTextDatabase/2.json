@@ -1,0 +1,1779 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "e99fb47d3d55b6808f152a573ba45d5e",
+    "entities": [
+      {
+        "tableName": "recipient_endpoint",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `raw_address` TEXT NOT NULL, `normalized_address` TEXT NOT NULL, `display_name` TEXT, `source` TEXT NOT NULL, `contact_lookup_key` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawAddress",
+            "columnName": "raw_address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normalizedAddress",
+            "columnName": "normalized_address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "display_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contactLookupKey",
+            "columnName": "contact_lookup_key",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recipient_endpoint_normalized_address",
+            "unique": false,
+            "columnNames": [
+              "normalized_address"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recipient_endpoint_normalized_address` ON `${TABLE_NAME}` (`normalized_address`)"
+          },
+          {
+            "name": "index_recipient_endpoint_contact_lookup_key",
+            "unique": false,
+            "columnNames": [
+              "contact_lookup_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recipient_endpoint_contact_lookup_key` ON `${TABLE_NAME}` (`contact_lookup_key`)"
+          }
+        ]
+      },
+      {
+        "tableName": "schedule",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `recipient_endpoint_id` TEXT NOT NULL, `active_content_revision_id` TEXT, `active_rule_revision_id` TEXT, `state` TEXT NOT NULL, `transport_mode` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`recipient_endpoint_id`) REFERENCES `recipient_endpoint`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`active_content_revision_id`) REFERENCES `content_revision`(`id`) ON UPDATE CASCADE ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED, FOREIGN KEY(`active_rule_revision_id`) REFERENCES `rule_revision`(`id`) ON UPDATE CASCADE ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recipientEndpointId",
+            "columnName": "recipient_endpoint_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeContentRevisionId",
+            "columnName": "active_content_revision_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "activeRuleRevisionId",
+            "columnName": "active_rule_revision_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transportMode",
+            "columnName": "transport_mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAtEpochMillis",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_schedule_recipient_endpoint_id",
+            "unique": false,
+            "columnNames": [
+              "recipient_endpoint_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_schedule_recipient_endpoint_id` ON `${TABLE_NAME}` (`recipient_endpoint_id`)"
+          },
+          {
+            "name": "index_schedule_active_content_revision_id",
+            "unique": false,
+            "columnNames": [
+              "active_content_revision_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_schedule_active_content_revision_id` ON `${TABLE_NAME}` (`active_content_revision_id`)"
+          },
+          {
+            "name": "index_schedule_active_rule_revision_id",
+            "unique": false,
+            "columnNames": [
+              "active_rule_revision_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_schedule_active_rule_revision_id` ON `${TABLE_NAME}` (`active_rule_revision_id`)"
+          },
+          {
+            "name": "index_schedule_state_updated_at",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_schedule_state_updated_at` ON `${TABLE_NAME}` (`state`, `updated_at`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "recipient_endpoint",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "recipient_endpoint_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "content_revision",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "active_content_revision_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "rule_revision",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "active_rule_revision_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "content_revision",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `schedule_id` TEXT NOT NULL, `revision_number` INTEGER NOT NULL, `text` TEXT NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`schedule_id`) REFERENCES `schedule`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scheduleId",
+            "columnName": "schedule_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revisionNumber",
+            "columnName": "revision_number",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_content_revision_schedule_id_revision_number",
+            "unique": true,
+            "columnNames": [
+              "schedule_id",
+              "revision_number"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_content_revision_schedule_id_revision_number` ON `${TABLE_NAME}` (`schedule_id`, `revision_number`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "schedule",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "schedule_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "attachment_asset",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `storage_class` TEXT NOT NULL, `relative_path` TEXT NOT NULL, `mime_type` TEXT NOT NULL, `byte_count` INTEGER NOT NULL, `width_pixels` INTEGER, `height_pixels` INTEGER, `sha256` TEXT NOT NULL, `is_animated` INTEGER NOT NULL, `intake_source` TEXT NOT NULL, `state` TEXT NOT NULL, `failure_reason` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `staging_expires_at` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageClass",
+            "columnName": "storage_class",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "relativePath",
+            "columnName": "relative_path",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mimeType",
+            "columnName": "mime_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "byteCount",
+            "columnName": "byte_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "widthPixels",
+            "columnName": "width_pixels",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "heightPixels",
+            "columnName": "height_pixels",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sha256",
+            "columnName": "sha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAnimated",
+            "columnName": "is_animated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "intakeSource",
+            "columnName": "intake_source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "failureReason",
+            "columnName": "failure_reason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stagingExpiresAtEpochMillis",
+            "columnName": "staging_expires_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_attachment_asset_sha256",
+            "unique": false,
+            "columnNames": [
+              "sha256"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_attachment_asset_sha256` ON `${TABLE_NAME}` (`sha256`)"
+          },
+          {
+            "name": "index_attachment_asset_storage_class_relative_path",
+            "unique": true,
+            "columnNames": [
+              "storage_class",
+              "relative_path"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_attachment_asset_storage_class_relative_path` ON `${TABLE_NAME}` (`storage_class`, `relative_path`)"
+          },
+          {
+            "name": "index_attachment_asset_storage_class_state",
+            "unique": false,
+            "columnNames": [
+              "storage_class",
+              "state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_attachment_asset_storage_class_state` ON `${TABLE_NAME}` (`storage_class`, `state`)"
+          },
+          {
+            "name": "index_attachment_asset_staging_expires_at",
+            "unique": false,
+            "columnNames": [
+              "staging_expires_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_attachment_asset_staging_expires_at` ON `${TABLE_NAME}` (`staging_expires_at`)"
+          }
+        ]
+      },
+      {
+        "tableName": "content_attachment",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`content_revision_id` TEXT NOT NULL, `attachment_asset_id` TEXT NOT NULL, `sort_order` INTEGER NOT NULL, PRIMARY KEY(`content_revision_id`), FOREIGN KEY(`content_revision_id`) REFERENCES `content_revision`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`attachment_asset_id`) REFERENCES `attachment_asset`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "contentRevisionId",
+            "columnName": "content_revision_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attachmentAssetId",
+            "columnName": "attachment_asset_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "content_revision_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_content_attachment_attachment_asset_id",
+            "unique": false,
+            "columnNames": [
+              "attachment_asset_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_content_attachment_attachment_asset_id` ON `${TABLE_NAME}` (`attachment_asset_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "content_revision",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "content_revision_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "attachment_asset",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "attachment_asset_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "rule_revision",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `schedule_id` TEXT NOT NULL, `revision_number` INTEGER NOT NULL, `frequency` TEXT NOT NULL, `interval` INTEGER NOT NULL, `start_epoch_day` INTEGER NOT NULL, `seconds_of_day` INTEGER NOT NULL, `days_of_week_mask` INTEGER NOT NULL, `monthly_day_of_month` INTEGER, `monthly_edge_policy` TEXT NOT NULL, `zone_policy` TEXT NOT NULL, `zone_id` TEXT NOT NULL, `end_condition` TEXT NOT NULL, `end_count` INTEGER, `end_epoch_day` INTEGER, `jitter_range_minutes` INTEGER NOT NULL, `missed_policy` TEXT NOT NULL, `grace_period_minutes` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`schedule_id`) REFERENCES `schedule`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scheduleId",
+            "columnName": "schedule_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revisionNumber",
+            "columnName": "revision_number",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "frequency",
+            "columnName": "frequency",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "interval",
+            "columnName": "interval",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startEpochDay",
+            "columnName": "start_epoch_day",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "secondsOfDay",
+            "columnName": "seconds_of_day",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "daysOfWeekMask",
+            "columnName": "days_of_week_mask",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "monthlyDayOfMonth",
+            "columnName": "monthly_day_of_month",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "monthlyEdgePolicy",
+            "columnName": "monthly_edge_policy",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "zonePolicy",
+            "columnName": "zone_policy",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "zoneId",
+            "columnName": "zone_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endCondition",
+            "columnName": "end_condition",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endCount",
+            "columnName": "end_count",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "endEpochDay",
+            "columnName": "end_epoch_day",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "jitterRangeMinutes",
+            "columnName": "jitter_range_minutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "missedPolicy",
+            "columnName": "missed_policy",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gracePeriodMinutes",
+            "columnName": "grace_period_minutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_rule_revision_schedule_id_revision_number",
+            "unique": true,
+            "columnNames": [
+              "schedule_id",
+              "revision_number"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_rule_revision_schedule_id_revision_number` ON `${TABLE_NAME}` (`schedule_id`, `revision_number`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "schedule",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "schedule_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "occurrence",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `schedule_id` TEXT NOT NULL, `rule_revision_id` TEXT NOT NULL, `content_revision_id` TEXT NOT NULL, `logical_recurrence_key` TEXT NOT NULL, `nominal_epoch_day` INTEGER NOT NULL, `nominal_seconds_of_day` INTEGER NOT NULL, `selected_zone_id` TEXT NOT NULL, `selected_offset_seconds` INTEGER NOT NULL, `dst_resolution` TEXT NOT NULL, `jitter_offset_minutes` INTEGER NOT NULL, `target_at` INTEGER NOT NULL, `deadline_at` INTEGER NOT NULL, `state` TEXT NOT NULL, `send_outcome` TEXT NOT NULL, `delivery_outcome` TEXT NOT NULL, `active_attempt_id` TEXT, `retry_at` INTEGER, `claim_owner` TEXT, `claim_until` INTEGER, `alarm_generation` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`schedule_id`) REFERENCES `schedule`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`rule_revision_id`) REFERENCES `rule_revision`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT , FOREIGN KEY(`content_revision_id`) REFERENCES `content_revision`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scheduleId",
+            "columnName": "schedule_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ruleRevisionId",
+            "columnName": "rule_revision_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "contentRevisionId",
+            "columnName": "content_revision_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "logicalRecurrenceKey",
+            "columnName": "logical_recurrence_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nominalEpochDay",
+            "columnName": "nominal_epoch_day",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nominalSecondsOfDay",
+            "columnName": "nominal_seconds_of_day",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "selectedZoneId",
+            "columnName": "selected_zone_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "selectedOffsetSeconds",
+            "columnName": "selected_offset_seconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dstResolution",
+            "columnName": "dst_resolution",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "jitterOffsetMinutes",
+            "columnName": "jitter_offset_minutes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetAtEpochMillis",
+            "columnName": "target_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deadlineAtEpochMillis",
+            "columnName": "deadline_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sendOutcome",
+            "columnName": "send_outcome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveryOutcome",
+            "columnName": "delivery_outcome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeAttemptId",
+            "columnName": "active_attempt_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "retryAtEpochMillis",
+            "columnName": "retry_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "claimOwner",
+            "columnName": "claim_owner",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "claimUntilEpochMillis",
+            "columnName": "claim_until",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "alarmGeneration",
+            "columnName": "alarm_generation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_occurrence_schedule_id_logical_recurrence_key",
+            "unique": true,
+            "columnNames": [
+              "schedule_id",
+              "logical_recurrence_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_occurrence_schedule_id_logical_recurrence_key` ON `${TABLE_NAME}` (`schedule_id`, `logical_recurrence_key`)"
+          },
+          {
+            "name": "index_occurrence_rule_revision_id",
+            "unique": false,
+            "columnNames": [
+              "rule_revision_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_occurrence_rule_revision_id` ON `${TABLE_NAME}` (`rule_revision_id`)"
+          },
+          {
+            "name": "index_occurrence_content_revision_id",
+            "unique": false,
+            "columnNames": [
+              "content_revision_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_occurrence_content_revision_id` ON `${TABLE_NAME}` (`content_revision_id`)"
+          },
+          {
+            "name": "index_occurrence_state_target_at",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "target_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_occurrence_state_target_at` ON `${TABLE_NAME}` (`state`, `target_at`)"
+          },
+          {
+            "name": "index_occurrence_state_retry_at",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "retry_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_occurrence_state_retry_at` ON `${TABLE_NAME}` (`state`, `retry_at`)"
+          },
+          {
+            "name": "index_occurrence_active_attempt_id",
+            "unique": false,
+            "columnNames": [
+              "active_attempt_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_occurrence_active_attempt_id` ON `${TABLE_NAME}` (`active_attempt_id`)"
+          },
+          {
+            "name": "index_occurrence_claim_until",
+            "unique": false,
+            "columnNames": [
+              "claim_until"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_occurrence_claim_until` ON `${TABLE_NAME}` (`claim_until`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "schedule",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "schedule_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "rule_revision",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "rule_revision_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "content_revision",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "content_revision_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "send_attempt",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `occurrence_id` TEXT NOT NULL, `attempt_number` INTEGER NOT NULL, `transport_mode` TEXT NOT NULL, `send_outcome` TEXT NOT NULL, `delivery_outcome` TEXT NOT NULL, `failure_code` TEXT, `failure_detail` TEXT, `started_at` INTEGER NOT NULL, `finished_at` INTEGER, `delivery_deadline_at` INTEGER, `subscription_id` INTEGER, `provider_message_id` INTEGER, `provider_status` INTEGER, `provider_error_code` INTEGER, `provider_observed_at` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`occurrence_id`) REFERENCES `occurrence`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "occurrenceId",
+            "columnName": "occurrence_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attemptNumber",
+            "columnName": "attempt_number",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transportMode",
+            "columnName": "transport_mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sendOutcome",
+            "columnName": "send_outcome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveryOutcome",
+            "columnName": "delivery_outcome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "failureCode",
+            "columnName": "failure_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "failureDetail",
+            "columnName": "failure_detail",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startedAtEpochMillis",
+            "columnName": "started_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finishedAtEpochMillis",
+            "columnName": "finished_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deliveryDeadlineAtEpochMillis",
+            "columnName": "delivery_deadline_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "subscriptionId",
+            "columnName": "subscription_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "providerMessageId",
+            "columnName": "provider_message_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "providerStatus",
+            "columnName": "provider_status",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "providerErrorCode",
+            "columnName": "provider_error_code",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "providerObservedAtEpochMillis",
+            "columnName": "provider_observed_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_send_attempt_occurrence_id_attempt_number",
+            "unique": true,
+            "columnNames": [
+              "occurrence_id",
+              "attempt_number"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_send_attempt_occurrence_id_attempt_number` ON `${TABLE_NAME}` (`occurrence_id`, `attempt_number`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "occurrence",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "occurrence_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "attempt_part",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`attempt_id` TEXT NOT NULL, `part_index` INTEGER NOT NULL, `total_parts` INTEGER NOT NULL, `send_outcome` TEXT NOT NULL, `delivery_outcome` TEXT NOT NULL, `sent_result_code` INTEGER, `delivery_result_code` INTEGER, `sent_at` INTEGER, `delivered_at` INTEGER, PRIMARY KEY(`attempt_id`, `part_index`), FOREIGN KEY(`attempt_id`) REFERENCES `send_attempt`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "attemptId",
+            "columnName": "attempt_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "partIndex",
+            "columnName": "part_index",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalParts",
+            "columnName": "total_parts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sendOutcome",
+            "columnName": "send_outcome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveryOutcome",
+            "columnName": "delivery_outcome",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sentResultCode",
+            "columnName": "sent_result_code",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deliveryResultCode",
+            "columnName": "delivery_result_code",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sentAtEpochMillis",
+            "columnName": "sent_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deliveredAtEpochMillis",
+            "columnName": "delivered_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "attempt_id",
+            "part_index"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_attempt_part_attempt_id",
+            "unique": false,
+            "columnNames": [
+              "attempt_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_attempt_part_attempt_id` ON `${TABLE_NAME}` (`attempt_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "send_attempt",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "attempt_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "callback_token",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`token` TEXT NOT NULL, `attempt_id` TEXT NOT NULL, `part_index` INTEGER NOT NULL, `kind` TEXT NOT NULL, `state` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `expires_at` INTEGER NOT NULL, `consumed_at` INTEGER, PRIMARY KEY(`token`), FOREIGN KEY(`attempt_id`) REFERENCES `send_attempt`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "token",
+            "columnName": "token",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attemptId",
+            "columnName": "attempt_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "partIndex",
+            "columnName": "part_index",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expiresAtEpochMillis",
+            "columnName": "expires_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "consumedAtEpochMillis",
+            "columnName": "consumed_at",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "token"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_callback_token_attempt_id_part_index_kind",
+            "unique": true,
+            "columnNames": [
+              "attempt_id",
+              "part_index",
+              "kind"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_callback_token_attempt_id_part_index_kind` ON `${TABLE_NAME}` (`attempt_id`, `part_index`, `kind`)"
+          },
+          {
+            "name": "index_callback_token_state_expires_at",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "expires_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_callback_token_state_expires_at` ON `${TABLE_NAME}` (`state`, `expires_at`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "send_attempt",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "attempt_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "occurrence_event",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `occurrence_id` TEXT NOT NULL, `attempt_id` TEXT, `type` TEXT NOT NULL, `detail_json` TEXT, `happened_at` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`occurrence_id`) REFERENCES `occurrence`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`attempt_id`) REFERENCES `send_attempt`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "occurrenceId",
+            "columnName": "occurrence_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attemptId",
+            "columnName": "attempt_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detailJson",
+            "columnName": "detail_json",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "happenedAtEpochMillis",
+            "columnName": "happened_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_occurrence_event_occurrence_id_happened_at",
+            "unique": false,
+            "columnNames": [
+              "occurrence_id",
+              "happened_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_occurrence_event_occurrence_id_happened_at` ON `${TABLE_NAME}` (`occurrence_id`, `happened_at`)"
+          },
+          {
+            "name": "index_occurrence_event_attempt_id",
+            "unique": false,
+            "columnNames": [
+              "attempt_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_occurrence_event_attempt_id` ON `${TABLE_NAME}` (`attempt_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "occurrence",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "occurrence_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "send_attempt",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "attempt_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "composer_draft",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `text` TEXT NOT NULL, `recipient_endpoint_id` TEXT, `raw_recipient_address` TEXT, `source` TEXT NOT NULL, `state` TEXT NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`recipient_endpoint_id`) REFERENCES `recipient_endpoint`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recipientEndpointId",
+            "columnName": "recipient_endpoint_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawRecipientAddress",
+            "columnName": "raw_recipient_address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_composer_draft_recipient_endpoint_id",
+            "unique": false,
+            "columnNames": [
+              "recipient_endpoint_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_composer_draft_recipient_endpoint_id` ON `${TABLE_NAME}` (`recipient_endpoint_id`)"
+          },
+          {
+            "name": "index_composer_draft_updated_at",
+            "unique": false,
+            "columnNames": [
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_composer_draft_updated_at` ON `${TABLE_NAME}` (`updated_at`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "recipient_endpoint",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "recipient_endpoint_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "draft_attachment",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`draft_id` TEXT NOT NULL, `attachment_asset_id` TEXT NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`draft_id`), FOREIGN KEY(`draft_id`) REFERENCES `composer_draft`(`id`) ON UPDATE CASCADE ON DELETE CASCADE , FOREIGN KEY(`attachment_asset_id`) REFERENCES `attachment_asset`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "draftId",
+            "columnName": "draft_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attachmentAssetId",
+            "columnName": "attachment_asset_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "draft_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_draft_attachment_attachment_asset_id",
+            "unique": true,
+            "columnNames": [
+              "attachment_asset_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_draft_attachment_attachment_asset_id` ON `${TABLE_NAME}` (`attachment_asset_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "composer_draft",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "draft_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "attachment_asset",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "attachment_asset_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "recent_recipient",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`normalized_address` TEXT NOT NULL, `raw_address` TEXT NOT NULL, `display_name` TEXT, `recipient_endpoint_id` TEXT, `last_used_at` INTEGER NOT NULL, `use_count` INTEGER NOT NULL, PRIMARY KEY(`normalized_address`), FOREIGN KEY(`recipient_endpoint_id`) REFERENCES `recipient_endpoint`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "normalizedAddress",
+            "columnName": "normalized_address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawAddress",
+            "columnName": "raw_address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "display_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recipientEndpointId",
+            "columnName": "recipient_endpoint_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastUsedAtEpochMillis",
+            "columnName": "last_used_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "useCount",
+            "columnName": "use_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "normalized_address"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recent_recipient_recipient_endpoint_id",
+            "unique": false,
+            "columnNames": [
+              "recipient_endpoint_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recent_recipient_recipient_endpoint_id` ON `${TABLE_NAME}` (`recipient_endpoint_id`)"
+          },
+          {
+            "name": "index_recent_recipient_last_used_at",
+            "unique": false,
+            "columnNames": [
+              "last_used_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recent_recipient_last_used_at` ON `${TABLE_NAME}` (`last_used_at`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "recipient_endpoint",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "recipient_endpoint_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "notification_record",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `occurrence_id` TEXT, `type` TEXT NOT NULL, `android_notification_id` INTEGER NOT NULL, `channel_id` TEXT NOT NULL, `state` TEXT NOT NULL, `posted_at` INTEGER, `cancelled_at` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`occurrence_id`) REFERENCES `occurrence`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "occurrenceId",
+            "columnName": "occurrence_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "androidNotificationId",
+            "columnName": "android_notification_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "channelId",
+            "columnName": "channel_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "postedAtEpochMillis",
+            "columnName": "posted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "cancelledAtEpochMillis",
+            "columnName": "cancelled_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_notification_record_occurrence_id",
+            "unique": false,
+            "columnNames": [
+              "occurrence_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_record_occurrence_id` ON `${TABLE_NAME}` (`occurrence_id`)"
+          },
+          {
+            "name": "index_notification_record_android_notification_id",
+            "unique": true,
+            "columnNames": [
+              "android_notification_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_notification_record_android_notification_id` ON `${TABLE_NAME}` (`android_notification_id`)"
+          },
+          {
+            "name": "index_notification_record_state_updated_at",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "updated_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_notification_record_state_updated_at` ON `${TABLE_NAME}` (`state`, `updated_at`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "occurrence",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "occurrence_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "side_effect_outbox",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `aggregate_type` TEXT NOT NULL, `aggregate_id` TEXT NOT NULL, `effect_type` TEXT NOT NULL, `payload_json` TEXT NOT NULL, `deduplication_key` TEXT NOT NULL, `state` TEXT NOT NULL, `available_at` INTEGER NOT NULL, `claim_owner` TEXT, `claim_until` INTEGER, `attempt_count` INTEGER NOT NULL, `last_error` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aggregateType",
+            "columnName": "aggregate_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aggregateId",
+            "columnName": "aggregate_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "effectType",
+            "columnName": "effect_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payload_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deduplicationKey",
+            "columnName": "deduplication_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "availableAtEpochMillis",
+            "columnName": "available_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "claimOwner",
+            "columnName": "claim_owner",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "claimUntilEpochMillis",
+            "columnName": "claim_until",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "attemptCount",
+            "columnName": "attempt_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastError",
+            "columnName": "last_error",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_side_effect_outbox_deduplication_key",
+            "unique": true,
+            "columnNames": [
+              "deduplication_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_side_effect_outbox_deduplication_key` ON `${TABLE_NAME}` (`deduplication_key`)"
+          },
+          {
+            "name": "index_side_effect_outbox_state_available_at_created_at",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "available_at",
+              "created_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_side_effect_outbox_state_available_at_created_at` ON `${TABLE_NAME}` (`state`, `available_at`, `created_at`)"
+          },
+          {
+            "name": "index_side_effect_outbox_claim_until",
+            "unique": false,
+            "columnNames": [
+              "claim_until"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_side_effect_outbox_claim_until` ON `${TABLE_NAME}` (`claim_until`)"
+          },
+          {
+            "name": "index_side_effect_outbox_aggregate_type_aggregate_id",
+            "unique": false,
+            "columnNames": [
+              "aggregate_type",
+              "aggregate_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_side_effect_outbox_aggregate_type_aggregate_id` ON `${TABLE_NAME}` (`aggregate_type`, `aggregate_id`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e99fb47d3d55b6808f152a573ba45d5e')"
+    ]
+  }
+}

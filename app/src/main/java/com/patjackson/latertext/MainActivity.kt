@@ -46,6 +46,7 @@ import com.patjackson.latertext.platform.android.contacts.ContactSelectionHelper
 import com.patjackson.latertext.platform.android.intake.IncomingIntentParser
 import com.patjackson.latertext.platform.android.AndroidNotificationPublisher
 import com.patjackson.latertext.platform.android.sharing.RecipientShareShortcutPublisher
+import com.patjackson.latertext.platform.android.execution.SmsProviderChangeObserver
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -56,6 +57,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject lateinit var shareShortcuts: RecipientShareShortcutPublisher
+    @Inject lateinit var smsProviderObserver: SmsProviderChangeObserver
     private val viewModel: AppViewModel by viewModels()
     internal val contactSelectionHelper by lazy { ContactSelectionHelper(contentResolver, resources) }
     private val incomingIntentParser by lazy { IncomingIntentParser(contentResolver) }
@@ -79,6 +81,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        smsProviderObserver.start()
         viewModel.refresh()
     }
 
@@ -180,15 +183,22 @@ private fun MainActivity.LaterTextApp(viewModel: AppViewModel) {
                     },
                     filter = ui.historyFilter,
                     onFilter = viewModel::setHistoryFilter,
-                    onOpen = {},
+                    onOpen = viewModel::openOccurrence,
                 )
 
                 AppScreen.SETTINGS -> SettingsScreen(
                     state = ui.settings,
                     onRequestSmsPermission = {
                         permissionLauncher.launch(
-                            arrayOf(Manifest.permission.SEND_SMS, Manifest.permission.READ_PHONE_STATE),
+                            arrayOf(
+                                Manifest.permission.SEND_SMS,
+                                Manifest.permission.READ_PHONE_STATE,
+                                Manifest.permission.READ_SMS,
+                            ),
                         )
+                    },
+                    onRequestSmsHistoryPermission = {
+                        permissionLauncher.launch(arrayOf(Manifest.permission.READ_SMS))
                     },
                     onRequestNotificationPermission = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

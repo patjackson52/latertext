@@ -101,13 +101,15 @@ internal fun OccurrenceEntity.toRecord() = OccurrenceRecord(
 internal fun SendAttemptRecord.toEntity() = SendAttemptEntity(
     id, occurrenceId, attemptNumber, transportMode, sendOutcome, deliveryOutcome,
     failureCode, failureDetail, startedAtEpochMillis, finishedAtEpochMillis,
-    deliveryDeadlineAtEpochMillis,
+    deliveryDeadlineAtEpochMillis, subscriptionId, providerMessageId, providerStatus,
+    providerErrorCode, providerObservedAtEpochMillis,
 )
 
 internal fun SendAttemptEntity.toRecord() = SendAttemptRecord(
     id, occurrenceId, attemptNumber, transportMode, sendOutcome, deliveryOutcome,
     failureCode, failureDetail, startedAtEpochMillis, finishedAtEpochMillis,
-    deliveryDeadlineAtEpochMillis,
+    deliveryDeadlineAtEpochMillis, subscriptionId, providerMessageId, providerStatus,
+    providerErrorCode, providerObservedAtEpochMillis,
 )
 
 internal fun AttemptPartRecord.toEntity() = AttemptPartEntity(
@@ -187,16 +189,21 @@ internal fun AttemptAggregate.toRecord() = AttemptBundle(
         .map(CallbackTokenEntity::toRecord),
 )
 
-internal fun ScheduleAggregate.toRecord(attachment: AttachmentAssetEntity?): ScheduleGraph {
+internal fun ScheduleAggregate.toRecord(
+    attachmentsByContentRevisionId: Map<String, AttachmentAssetEntity>,
+): ScheduleGraph {
     val activeContent = contentRevisions.firstOrNull { it.id == schedule.activeContentRevisionId }
     val activeRule = ruleRevisions.firstOrNull { it.id == schedule.activeRuleRevisionId }
     return ScheduleGraph(
         schedule = schedule.toRecord(),
         recipient = recipient.toRecord(),
         activeContent = activeContent?.toRecord(),
-        activeAttachment = attachment?.toRecord(),
+        activeAttachment = activeContent?.id?.let(attachmentsByContentRevisionId::get)?.toRecord(),
         activeRule = activeRule?.toRecord(),
         occurrences = occurrences.sortedWith(compareBy({ it.targetAtEpochMillis }, { it.id }))
             .map(OccurrenceEntity::toRecord),
+        contentRevisions = contentRevisions.sortedBy(ContentRevisionEntity::revisionNumber)
+            .map(ContentRevisionEntity::toRecord),
+        attachmentsByContentRevisionId = attachmentsByContentRevisionId.mapValues { it.value.toRecord() },
     )
 }

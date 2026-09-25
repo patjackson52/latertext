@@ -6,4 +6,7 @@
     <files-path
         name="durable_message_attachments"
         path="latertext_attachments/durable/" />
+    <cache-path
+        name="outgoing_mms_pdus"
+        path="latertext_mms/" />
 </paths>

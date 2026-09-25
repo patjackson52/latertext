@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.patjackson.latertext.data.api.AlarmIdentity
 import com.patjackson.latertext.data.api.AlarmSelectionChange
 import com.patjackson.latertext.data.api.ClaimedOccurrence
+import com.patjackson.latertext.data.api.CorroboratedAttemptProjection
 import com.patjackson.latertext.data.api.DeliveryOutcome
 import com.patjackson.latertext.data.api.ExecutionClaimResult
 import com.patjackson.latertext.data.api.OccurrenceExecutionRepository
@@ -13,6 +14,7 @@ import com.patjackson.latertext.data.api.ScheduleState
 import com.patjackson.latertext.data.api.SendOutcome
 import com.patjackson.latertext.data.impl.db.LaterTextDatabase
 import com.patjackson.latertext.data.impl.db.OccurrenceEntity
+import com.patjackson.latertext.data.impl.db.toEntity
 import com.patjackson.latertext.data.impl.db.toRecord
 
 class RoomOccurrenceExecutionRepository(
@@ -175,6 +177,48 @@ class RoomOccurrenceExecutionRepository(
         replaceRetryAt = true,
         updatedAtEpochMillis = nowEpochMillis,
     ) == 1
+
+    override suspend fun applyCorroboratedProjection(
+        projection: CorroboratedAttemptProjection,
+    ): Boolean {
+        require(projection.expectedOccurrenceStates.isNotEmpty())
+        require(projection.attempt.id == projection.expectedAttempt.id)
+        require(projection.attempt.occurrenceId == projection.expectedAttempt.occurrenceId)
+        require(projection.event.occurrenceId == projection.expectedAttempt.occurrenceId)
+        require(projection.event.attemptId == projection.expectedAttempt.id)
+        require(projection.expectedParts.all { it.attemptId == projection.expectedAttempt.id })
+        require(projection.parts.all { it.attemptId == projection.expectedAttempt.id })
+        require(projection.parts.map { it.partIndex }.toSet().size == projection.parts.size)
+
+        return database.withTransaction {
+            val current = database.attemptDao().getAggregate(projection.expectedAttempt.id)
+                ?.toRecord() ?: return@withTransaction false
+            if (
+                current.attempt != projection.expectedAttempt ||
+                current.parts.sortedBy { it.partIndex } !=
+                projection.expectedParts.sortedBy { it.partIndex }
+            ) return@withTransaction false
+
+            if (
+                database.occurrenceDao().applyCorroboratedProjection(
+                    occurrenceId = projection.expectedAttempt.occurrenceId,
+                    expectedAttemptId = projection.expectedAttempt.id,
+                    expectedStates = projection.expectedOccurrenceStates.toList(),
+                    newState = projection.occurrenceState,
+                    sendOutcome = projection.sendOutcome,
+                    deliveryOutcome = projection.deliveryOutcome,
+                    updatedAtEpochMillis = projection.event.happenedAtEpochMillis,
+                ) != 1
+            ) return@withTransaction false
+
+            check(database.attemptDao().updateAttempt(projection.attempt.toEntity()) == 1)
+            projection.parts.forEach { part ->
+                check(database.attemptDao().updatePart(part.toEntity()) == 1)
+            }
+            database.occurrenceEventDao().insert(projection.event.toEntity())
+            true
+        }
+    }
 
     override suspend fun attemptCount(occurrenceId: String): Int =
         database.attemptDao().countForOccurrence(occurrenceId)

@@ -5,6 +5,7 @@ data class AppReadiness(
     val canPostNotifications: Boolean,
     val canScheduleExactAlarms: Boolean,
     val hasActiveSmsSubscription: Boolean,
+    val canReadSmsHistory: Boolean = false,
 )
 
 interface ReadinessGateway {

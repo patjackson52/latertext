@@ -14,4 +14,10 @@ dependencies {
     implementation(project(":platform:api"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.klinker.android.smsmms) {
+        // Only the Apache-licensed pdu_alt encoder is used. Do not pull the library's
+        // obsolete networking stack; Android's system MMS service owns carrier transport.
+        isTransitive = false
+    }
+    implementation(libs.klinker.logger)
 }

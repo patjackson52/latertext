@@ -162,6 +162,9 @@ interface ContentDao {
     @Transaction
     @Query("SELECT * FROM content_revision WHERE id = :id")
     suspend fun getWithAttachment(id: String): ContentRevisionWithAttachment?
+
+    @Query("SELECT * FROM content_attachment WHERE content_revision_id IN (:contentRevisionIds)")
+    suspend fun attachmentLinks(contentRevisionIds: List<String>): List<ContentAttachmentEntity>
 }
 
 @Dao
@@ -171,6 +174,9 @@ interface AttachmentAssetDao {
 
     @Query("SELECT * FROM attachment_asset WHERE id = :id")
     suspend fun get(id: String): AttachmentAssetEntity?
+
+    @Query("SELECT * FROM attachment_asset WHERE id IN (:ids)")
+    suspend fun getAll(ids: List<String>): List<AttachmentAssetEntity>
 
     @Query(
         """
@@ -454,6 +460,29 @@ interface OccurrenceDao {
         replaceActiveAttemptId: Boolean,
         retryAtEpochMillis: Long?,
         replaceRetryAt: Boolean,
+        updatedAtEpochMillis: Long,
+    ): Int
+
+    @Query(
+        """
+        UPDATE occurrence
+        SET state = :newState,
+            send_outcome = :sendOutcome,
+            delivery_outcome = :deliveryOutcome,
+            retry_at = NULL,
+            updated_at = :updatedAtEpochMillis
+        WHERE id = :occurrenceId
+          AND active_attempt_id = :expectedAttemptId
+          AND state IN (:expectedStates)
+        """,
+    )
+    suspend fun applyCorroboratedProjection(
+        occurrenceId: String,
+        expectedAttemptId: String,
+        expectedStates: List<OccurrenceState>,
+        newState: OccurrenceState,
+        sendOutcome: SendOutcome,
+        deliveryOutcome: DeliveryOutcome,
         updatedAtEpochMillis: Long,
     ): Int
 

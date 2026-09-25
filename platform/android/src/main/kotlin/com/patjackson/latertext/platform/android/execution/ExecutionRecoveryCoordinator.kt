@@ -1,6 +1,7 @@
 package com.patjackson.latertext.platform.android.execution
 
 import com.patjackson.latertext.data.api.OccurrenceEventRecord
+import com.patjackson.latertext.data.api.AttemptRepository
 import com.patjackson.latertext.data.api.OccurrenceRecord
 import com.patjackson.latertext.data.api.OccurrenceRepository
 import com.patjackson.latertext.data.api.OccurrenceState
@@ -21,6 +22,9 @@ data class ExecutionRecoveryResult(
     val expiredAssistedOccurrences: Int,
     val timedOutSentCallbacks: Int,
     val timedOutDeliveryReports: Int,
+    val providerConfirmedSends: Int,
+    val providerDeliveryUpdates: Int,
+    val providerConfirmedFailures: Int,
     val alarmResult: AlarmCoordinationResult,
 )
 
@@ -32,6 +36,7 @@ data class ExecutionRecoveryResult(
 class ExecutionRecoveryCoordinator(
     private val schedules: ScheduleRepository,
     private val occurrences: OccurrenceRepository,
+    private val attempts: AttemptRepository,
     private val dueProcessor: DueOccurrenceProcessor,
     private val callbackProcessor: SmsCallbackProcessor,
     private val alarmCoordinator: AlarmCoordinator,
@@ -39,6 +44,8 @@ class ExecutionRecoveryCoordinator(
     private val notifications: NotificationPublisher,
     private val clock: AppClock,
     private val materialization: OccurrenceMaterializationCoordinator,
+    private val providerReconciler: SmsProviderReconciler,
+    private val attemptWorkScheduler: SmsAttemptWorkScheduler,
     private val ids: ExecutionIdFactory = UuidExecutionIdFactory(),
     private val queryLimit: Int = 500,
 ) {
@@ -76,12 +83,19 @@ class ExecutionRecoveryCoordinator(
             .flatMap { it.occurrences.asSequence() }
             .distinctBy { it.id }
             .toList()
+        val providerSummary = providerReconciler.reconcileAttempts(
+            durableOccurrences.asSequence()
+                .filter { it.state in PROVIDER_RECONCILABLE_STATES }
+                .mapNotNull(OccurrenceRecord::activeAttemptId)
+                .toList(),
+        )
 
         var reclaimed = 0
         var expiredAssisted = 0
         var sentTimeouts = 0
         var deliveryTimeouts = 0
-        durableOccurrences.forEach { occurrence ->
+        durableOccurrences.forEach { staleOccurrence ->
+            val occurrence = occurrences.get(staleOccurrence.id) ?: staleOccurrence
             when (occurrence.state) {
                 OccurrenceState.CLAIMED -> {
                     if ((occurrence.claimUntilEpochMillis ?: Long.MIN_VALUE) <= now.toEpochMilli()) {
@@ -93,12 +107,28 @@ class ExecutionRecoveryCoordinator(
                 }
                 OccurrenceState.SENDING -> {
                     val attemptId = occurrence.activeAttemptId ?: return@forEach
+                    attempts.get(attemptId)?.attempt?.let { attempt ->
+                        attemptWorkScheduler.repair(
+                            attemptId,
+                            attempt.startedAtEpochMillis,
+                            attempt.deliveryDeadlineAtEpochMillis,
+                            occurrence.state,
+                        )
+                    }
                     if (callbackProcessor.processSentCallbackTimeout(attemptId) is SmsCallbackProcessResult.Terminal) {
                         sentTimeouts += 1
                     }
                 }
                 OccurrenceState.SENT_TO_CARRIER -> {
                     val attemptId = occurrence.activeAttemptId ?: return@forEach
+                    attempts.get(attemptId)?.attempt?.let { attempt ->
+                        attemptWorkScheduler.repair(
+                            attemptId,
+                            attempt.startedAtEpochMillis,
+                            attempt.deliveryDeadlineAtEpochMillis,
+                            occurrence.state,
+                        )
+                    }
                     if (callbackProcessor.processDeliveryTimeout(attemptId) is SmsCallbackProcessResult.Terminal) {
                         deliveryTimeouts += 1
                     }
@@ -125,6 +155,9 @@ class ExecutionRecoveryCoordinator(
             expiredAssistedOccurrences = expiredAssisted,
             timedOutSentCallbacks = sentTimeouts,
             timedOutDeliveryReports = deliveryTimeouts,
+            providerConfirmedSends = providerSummary.confirmedSent,
+            providerDeliveryUpdates = providerSummary.deliveryUpdates,
+            providerConfirmedFailures = providerSummary.confirmedFailed,
             alarmResult = alarmResult,
         )
     }
@@ -165,6 +198,15 @@ class ExecutionRecoveryCoordinator(
                 body = "LaterText will use Android's best-effort timing until exact alarm access is restored.",
                 occurrenceId = occurrenceId,
             ),
+        )
+    }
+
+    companion object {
+        private val PROVIDER_RECONCILABLE_STATES = setOf(
+            OccurrenceState.SENDING,
+            OccurrenceState.SENT_TO_CARRIER,
+            OccurrenceState.PARTIAL_AMBIGUOUS,
+            OccurrenceState.DELIVERY_UNAVAILABLE,
         )
     }
 }

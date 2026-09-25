@@ -10,6 +10,8 @@ import com.patjackson.latertext.core.model.MissedPolicy as DomainMissedPolicy
 import com.patjackson.latertext.data.api.AttemptBundle
 import com.patjackson.latertext.data.api.AttemptPartRecord
 import com.patjackson.latertext.data.api.AttemptRepository
+import com.patjackson.latertext.data.api.AttachmentRepository
+import com.patjackson.latertext.data.api.AttachmentState
 import com.patjackson.latertext.data.api.CallbackKind
 import com.patjackson.latertext.data.api.CallbackTokenRecord
 import com.patjackson.latertext.data.api.CallbackTokenState
@@ -33,8 +35,11 @@ import com.patjackson.latertext.platform.api.AutomaticSmsGateway
 import com.patjackson.latertext.platform.api.NotificationKind
 import com.patjackson.latertext.platform.api.NotificationPublisher
 import com.patjackson.latertext.platform.api.ReadinessGateway
+import com.patjackson.latertext.platform.api.MmsSendRequest
 import com.patjackson.latertext.platform.api.SmsSendRequest
 import com.patjackson.latertext.platform.api.SubscriptionGateway
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.time.Duration
 import java.time.Instant
 
@@ -51,6 +56,7 @@ class DueOccurrenceProcessor(
     private val occurrences: OccurrenceRepository,
     private val executions: OccurrenceExecutionRepository,
     private val attempts: AttemptRepository,
+    private val attachments: AttachmentRepository,
     private val settings: SettingsRepository,
     private val readiness: ReadinessGateway,
     private val subscriptions: SubscriptionGateway,
@@ -148,7 +154,8 @@ class DueOccurrenceProcessor(
             )
             DueAction.REQUIRE_USER -> prepareAssisted(claimed, owner, snapshot, eventAt, true)
             DueAction.SEND_NOW -> when (claimed.schedule.transportMode) {
-                TransportMode.AUTOMATIC_SMS -> sendAutomatic(claimed, owner, snapshot, eventAt)
+                TransportMode.AUTOMATIC_SMS -> sendAutomaticSms(claimed, owner, snapshot, eventAt)
+                TransportMode.AUTOMATIC_MMS -> sendAutomaticMms(claimed, owner, snapshot, eventAt)
                 TransportMode.ASSISTED_TEXT,
                 TransportMode.ASSISTED_MEDIA,
                 -> prepareAssisted(claimed, owner, snapshot, eventAt, actionNotificationAvailable)
@@ -156,7 +163,7 @@ class DueOccurrenceProcessor(
         }
     }
 
-    private suspend fun sendAutomatic(
+    private suspend fun sendAutomaticSms(
         claimed: ClaimedOccurrence,
         owner: String,
         snapshot: com.patjackson.latertext.core.model.OccurrenceSnapshot,
@@ -186,8 +193,11 @@ class DueOccurrenceProcessor(
             occurrenceId = claimed.occurrence.id,
             attemptNumber = attemptNumber,
             partCount = parts.size,
+            subscriptionId = subscriptionId,
             startedAt = now,
             deliveryDeadline = deliveryDeadline,
+            transportMode = TransportMode.AUTOMATIC_SMS,
+            requestDeliveryCallbacks = true,
         )
         attempts.create(bundle)
 
@@ -228,6 +238,105 @@ class DueOccurrenceProcessor(
         }
         appendEvent(claimed.occurrence.id, attemptId, "SMS_ENQUEUED", now)
         return DueProcessResult.AwaitingSmsCallbacks(attemptId, parts.size)
+    }
+
+    private suspend fun sendAutomaticMms(
+        claimed: ClaimedOccurrence,
+        owner: String,
+        snapshot: com.patjackson.latertext.core.model.OccurrenceSnapshot,
+        now: Instant,
+    ): DueProcessResult {
+        val readinessSnapshot = readiness.snapshot()
+        if (!readinessSnapshot.canSendSms) {
+            return failBeforeAttempt(claimed, owner, now, "mms_permission_or_service_unavailable")
+        }
+        val currentSettings = settings.get()
+        val subscriptionId = resolveSubscription(currentSettings.preferredSubscriptionId)
+            ?: return failBeforeAttempt(claimed, owner, now, "mms_subscription_unavailable")
+        val attachment = claimed.attachment
+            ?: return failBeforeAttempt(claimed, owner, now, "mms_attachment_missing")
+        if (attachment.state != AttachmentState.READY) {
+            return failBeforeAttempt(claimed, owner, now, "mms_attachment_not_ready")
+        }
+        val capability = runCatching { automaticSms.mmsCapability(subscriptionId) }.getOrElse {
+            return failBeforeAttempt(claimed, owner, now, "mms_carrier_config_unavailable")
+        }
+        if (!capability.acceptsText(claimed.content.text.toByteArray(Charsets.UTF_8).size)) {
+            return failBeforeAttempt(claimed, owner, now, "mms_text_exceeds_carrier_limit")
+        }
+        if (!capability.canPrepare(
+                attachment.mimeType,
+                attachment.byteCount,
+                attachment.widthPixels,
+                attachment.heightPixels,
+                attachment.isAnimated,
+            )
+        ) {
+            return failBeforeAttempt(
+                claimed,
+                owner,
+                now,
+                capability.reason ?: "mms_attachment_exceeds_carrier_limits",
+            )
+        }
+        val attachmentBytes = runCatching {
+            attachments.open(attachment.id).use { input ->
+                input.readBounded(MAX_MMS_SOURCE_BYTES)
+            }
+        }.getOrElse {
+            return failBeforeAttempt(claimed, owner, now, "mms_attachment_read_failed")
+        }
+
+        val attemptId = ids.newId()
+        val bundle = newAttemptBundle(
+            attemptId = attemptId,
+            occurrenceId = claimed.occurrence.id,
+            attemptNumber = executions.attemptCount(claimed.occurrence.id) + 1,
+            partCount = 1,
+            subscriptionId = subscriptionId,
+            startedAt = now,
+            deliveryDeadline = null,
+            transportMode = TransportMode.AUTOMATIC_MMS,
+            requestDeliveryCallbacks = false,
+        )
+        attempts.create(bundle)
+        val sending = occurrenceReducer.reduce(
+            snapshot,
+            OccurrenceEvent.BeginAutomaticAttempt(AttemptId(attemptId), now),
+        )
+        if (!executions.transitionClaimed(
+                occurrenceId = claimed.occurrence.id,
+                owner = owner,
+                newState = sending.state.toRecord(),
+                sendOutcome = sending.sendOutcome.toRecord(),
+                deliveryOutcome = DeliveryOutcome.NOT_REQUESTED,
+                activeAttemptId = attemptId,
+                nowEpochMillis = now.toEpochMilli(),
+            )
+        ) return DueProcessResult.Ignored("claim_lost_before_mms_enqueue")
+
+        val enqueue = runCatching {
+            automaticSms.enqueueMms(
+                MmsSendRequest(
+                    attemptId = attemptId,
+                    recipientAddress = claimed.recipient.normalizedAddress,
+                    body = claimed.content.text,
+                    attachmentBytes = attachmentBytes,
+                    attachmentMimeType = attachment.mimeType,
+                    attachmentIsAnimated = attachment.isAnimated,
+                    attachmentWidthPixels = attachment.widthPixels,
+                    attachmentHeightPixels = attachment.heightPixels,
+                    subscriptionId = subscriptionId,
+                ),
+            )
+        }.getOrElse { error ->
+            return failEnqueue(claimed, bundle, "mms_enqueue_exception:${error.javaClass.simpleName}", now)
+        }
+        if (!enqueue.acceptedByPlatform) {
+            return failEnqueue(claimed, bundle, enqueue.immediateError ?: "mms_enqueue_rejected", now)
+        }
+        appendEvent(claimed.occurrence.id, attemptId, "MMS_ENQUEUED", now)
+        return DueProcessResult.AwaitingSmsCallbacks(attemptId, 1)
     }
 
     private suspend fun prepareAssisted(
@@ -367,8 +476,11 @@ class DueOccurrenceProcessor(
         occurrenceId: String,
         attemptNumber: Int,
         partCount: Int,
+        subscriptionId: Int,
         startedAt: Instant,
-        deliveryDeadline: Instant,
+        deliveryDeadline: Instant?,
+        transportMode: TransportMode,
+        requestDeliveryCallbacks: Boolean,
     ): AttemptBundle {
         val parts = List(partCount) { index ->
             AttemptPartRecord(
@@ -383,9 +495,10 @@ class DueOccurrenceProcessor(
                 deliveredAtEpochMillis = null,
             )
         }
-        val expiry = deliveryDeadline.plus(Duration.ofHours(24)).toEpochMilli()
+        val expiry = (deliveryDeadline ?: startedAt).plus(Duration.ofHours(24)).toEpochMilli()
         val tokens = parts.flatMap { part ->
-            CallbackKind.entries.map { kind ->
+            val kinds = if (requestDeliveryCallbacks) CallbackKind.entries else listOf(CallbackKind.SENT)
+            kinds.map { kind ->
                 CallbackTokenRecord(
                     token = SmsCallbackToken.create(attemptId, part.partIndex, kind),
                     attemptId = attemptId,
@@ -403,14 +516,19 @@ class DueOccurrenceProcessor(
                 id = attemptId,
                 occurrenceId = occurrenceId,
                 attemptNumber = attemptNumber,
-                transportMode = TransportMode.AUTOMATIC_SMS,
+                transportMode = transportMode,
                 sendOutcome = SendOutcome.PENDING,
-                deliveryOutcome = DeliveryOutcome.PENDING,
+                deliveryOutcome = if (requestDeliveryCallbacks) {
+                    DeliveryOutcome.PENDING
+                } else {
+                    DeliveryOutcome.NOT_REQUESTED
+                },
                 failureCode = null,
                 failureDetail = null,
                 startedAtEpochMillis = startedAt.toEpochMilli(),
                 finishedAtEpochMillis = null,
-                deliveryDeadlineAtEpochMillis = deliveryDeadline.toEpochMilli(),
+                deliveryDeadlineAtEpochMillis = deliveryDeadline?.toEpochMilli(),
+                subscriptionId = subscriptionId,
             ),
             parts = parts,
             callbackTokens = tokens,
@@ -453,6 +571,23 @@ class DueOccurrenceProcessor(
             ),
         )
     }
+}
+
+private const val MAX_MMS_SOURCE_BYTES = 25 * 1_024 * 1_024
+
+private fun InputStream.readBounded(maxBytes: Int): ByteArray {
+    require(maxBytes > 0)
+    val output = ByteArrayOutputStream(minOf(maxBytes, 64 * 1_024))
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    var total = 0
+    while (true) {
+        val count = read(buffer)
+        if (count < 0) break
+        total += count
+        require(total <= maxBytes) { "Attachment grew beyond the carrier MMS limit" }
+        output.write(buffer, 0, count)
+    }
+    return output.toByteArray()
 }
 
 private fun MissedPolicy.toDomain(): DomainMissedPolicy = when (this) {

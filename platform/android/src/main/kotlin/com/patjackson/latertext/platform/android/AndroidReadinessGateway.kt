@@ -35,6 +35,10 @@ class AndroidReadinessGateway(
                 alarmManager.canScheduleExactAlarms(),
             hasActiveSmsSubscription = phonePermission &&
                 runCatching { subscriptionManager.activeSubscriptionInfoCount > 0 }.getOrDefault(false),
+            canReadSmsHistory = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_SMS,
+            ) == PackageManager.PERMISSION_GRANTED,
         )
     }
 }

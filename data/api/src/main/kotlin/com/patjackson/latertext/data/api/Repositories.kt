@@ -1,5 +1,7 @@
 package com.patjackson.latertext.data.api
 
+import kotlinx.coroutines.flow.Flow
+
 data class CreateScheduleCommand(
     val recipient: RecipientEndpointRecord,
     val schedule: ScheduleRecord,
@@ -62,6 +64,23 @@ sealed interface ExecutionClaimResult {
     data class Rejected(val occurrence: OccurrenceRecord?, val reason: String) : ExecutionClaimResult
 }
 
+/**
+ * An optimistic, all-or-nothing projection from a corroborating source such as the SMS provider.
+ * The expected attempt and parts prevent an older provider read from replacing a callback that
+ * committed while the provider query was in flight.
+ */
+data class CorroboratedAttemptProjection(
+    val expectedOccurrenceStates: Set<OccurrenceState>,
+    val expectedAttempt: SendAttemptRecord,
+    val expectedParts: List<AttemptPartRecord>,
+    val occurrenceState: OccurrenceState,
+    val sendOutcome: SendOutcome,
+    val deliveryOutcome: DeliveryOutcome,
+    val attempt: SendAttemptRecord,
+    val parts: List<AttemptPartRecord>,
+    val event: OccurrenceEventRecord,
+)
+
 interface OccurrenceExecutionRepository {
     suspend fun earliestEligible(nowEpochMillis: Long): OccurrenceRecord?
 
@@ -104,6 +123,12 @@ interface OccurrenceExecutionRepository {
         nowEpochMillis: Long,
     ): Boolean
 
+    /**
+     * Atomically updates occurrence, attempt, parts, and audit event only if none of the expected
+     * callback-owned records changed since they were read.
+     */
+    suspend fun applyCorroboratedProjection(projection: CorroboratedAttemptProjection): Boolean
+
     suspend fun attemptCount(occurrenceId: String): Int
     suspend fun latestAttempt(occurrenceId: String): AttemptBundle?
 }
@@ -115,6 +140,9 @@ interface ScheduleRepository {
     suspend fun get(scheduleId: String): ScheduleGraph?
     suspend fun listUpcoming(limit: Int = 100): List<ScheduleGraph>
     suspend fun listAll(limit: Int = 100): List<ScheduleGraph>
+    /** Emits initially and whenever schedule execution state affecting UI projections changes. */
+    fun observeChanges(): Flow<Unit>
+    suspend fun contentRevision(contentRevisionId: String): ContentRevisionRecord?
     suspend fun setPaused(scheduleId: String, paused: Boolean, updatedAtEpochMillis: Long): Boolean
     suspend fun softDelete(scheduleId: String, deletedAtEpochMillis: Long): Boolean
 }

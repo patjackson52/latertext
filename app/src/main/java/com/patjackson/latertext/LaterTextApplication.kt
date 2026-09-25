@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import com.patjackson.latertext.platform.android.AndroidNotificationPublisher
 import com.patjackson.latertext.platform.android.execution.ExecutionRecoveryCoordinator
 import com.patjackson.latertext.platform.android.execution.ExecutionWatchdogScheduler
+import com.patjackson.latertext.platform.android.execution.SmsProviderChangeObserver
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +20,7 @@ class LaterTextApplication : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var recovery: ExecutionRecoveryCoordinator
     @Inject lateinit var watchdog: ExecutionWatchdogScheduler
+    @Inject lateinit var smsProviderObserver: SmsProviderChangeObserver
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -27,6 +29,7 @@ class LaterTextApplication : Application(), Configuration.Provider {
         super.onCreate()
         AndroidNotificationPublisher(this).ensureChannels()
         watchdog.ensureScheduled()
+        smsProviderObserver.start()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             runCatching { recovery.onAppStart() }
                 .onSuccess { Log.d("LaterTextRecovery", "app-start recovery: $it") }
