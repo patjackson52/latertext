@@ -18,16 +18,37 @@ and user schedule identifiers out of diagnostics and Product Atlas evidence.
 <!-- shipyard-deploy:begin -->
 ## Shipyard Deploy
 
-This repository publishes only `com.patjackson.latertext.dev` under project
-`latertext`. `.shipyard-deploy.yaml` defines the variant and channel policy.
-Build with `python3 scripts/build_development.py`; the script uses an exact
-upstream plugin revision and never publishes. Inspect and dry-run the resulting
-APK before publication. Use `shipyard-deploy status --json`,
-`shipyard-deploy publish <apk> --dry-run --json`, and
-`shipyard-deploy publish <apk> --json` when publishing is authorized.
+This repository publishes development builds of `com.patjackson.latertext.dev` (Gradle variant `development`)
+to the Shipyard Deploy project `latertext`. Configuration lives in `.shipyard-deploy.yaml`;
+read it rather than hard-coding a project or a channel name.
 
-Use the user's existing trusted login. Do not invent a server, alter credentials,
-override project/channel to bypass a failure, work around a signer refusal, or
-publish a build you did not just build. Register the actual APK signer; never use
-Shipyard's public sample key for this app. No automatic device rollout is enabled.
+Which channel a build goes to is decided by the current git branch:
+
+- branch `main` → `main`
+- any other branch → `dev-{branch_slug}`
+
+### The three commands
+
+```sh
+shipyard-deploy status --json                 # what is published, where, from which branch
+shipyard-deploy publish <apk> --dry-run       # resolve the plan without uploading
+shipyard-deploy publish <apk>                 # publish; the channel is created if missing
+```
+
+Build the APK first with `python3 scripts/build_development.py`. This passes the pinned
+plugin repository so the APK includes Shipyard identity and provenance. Plain
+`assembleDevelopment` without that repository is not a publishable build.
+Every command takes `--json` and returns a single object; exit code 0 means it worked.
+
+### Do not
+
+- Do not publish a build you did not just build from the current working tree.
+- Do not pass `--project`, `--channel` or `--server` to work around a failure;
+  they override the config file, and the failure is usually the honest answer.
+- Do not publish from a dirty working tree without saying so in the release notes;
+  provenance records `dirty: true` and reviewers will see it.
+- Do not touch the release variant. Shipyard refuses it by design: it distributes
+  development builds only.
+- Do not add or edit credentials. `shipyard-deploy doctor` says whether the
+  environment is usable; if it is not, stop and report that.
 <!-- shipyard-deploy:end -->

@@ -1,4 +1,5 @@
 version: 1
+server: https://shipyard-deploy-dev.patjackson52.workers.dev
 project: latertext
 packages:
   com.patjackson.latertext.dev: { variant: development, signer: latertext-development }
